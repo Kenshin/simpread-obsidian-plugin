@@ -1,6 +1,6 @@
 # 描述
 
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/kenshin/simpread-obsidian?style=for-the-badge&sort=semver)](https://github.com/kenshin/simpread-obsidian/releases/latest)
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/kenshin/simpread-obsidian-plugin?style=for-the-badge&sort=semver)](https://github.com/kenshin/simpread-obsidian-plugin/releases/latest)
 
 https://user-images.githubusercontent.com/81074/135744012-ea403cb7-3145-401a-b9d5-ac588ff82975.mp4
 
