@@ -333,6 +333,7 @@ class SimpReadPlugin extends obsidian.Plugin {
             this.addSettingTab( new SimpReadSettingTab( this.app, this ));
             yield this.schedule();
             yield this.config();
+            yield this.getManifest();
         });
     }
 
@@ -351,6 +352,16 @@ class SimpReadPlugin extends obsidian.Plugin {
         return __awaiter( this, void 0, void 0, function* () {
             yield this.saveData( this.settings );
         });
+    }
+
+    getManifest() {
+        let path = `${ this.app.vault.configDir }/plugins/simpread/manifest.json`;
+        path     = this.app.vault.adapter.path.resolve( this.app.vault.adapter.getBasePath(), path );
+        this.app.vault.adapter.fs.readFile( path, 'utf8', ( err, result ) => {
+            if ( !err ) {
+                this.manifest = JSON.parse( result );
+            }
+        })
     }
 
     config( callback ) {
@@ -898,8 +909,11 @@ class SimpReadSettingTab extends obsidian.PluginSettingTab {
             );
 
         containerEl.createEl( 'h3', { text: 'Commands Support' });
-        containerEl.createEl( 'p' ).innerHTML = `Commands Support <a target="_blank" href='https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1420517'>reference</a>.`;
+        containerEl.createEl( 'div' ).outerHTML = `<div>Commands Support <a target="_blank" href='https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1420517'>reference</a>.<hr style="border-top: thin solid #ffffff0f;"></div>`;
 
+        containerEl.createEl( 'h3', { text: 'Version' });
+        containerEl.createEl( 'div' ).outerHTML = `<div>Current version is <span style="color: #e481c0;">${ this.plugin.manifest.version }</span> <a target="_blank" href='https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1420517'>check the latest version</a>.<hr style="border-top: thin solid #ffffff0f;"></div>`;
+        
         const help = containerEl.createEl( 'p' );
         help.innerHTML = `Question? Please see our <a href='https://github.com/Kenshin/simpread/discussions/2889'>Documentation</a> 🙂`;
     }
