@@ -83,9 +83,12 @@ class CommandsSuggest extends obsidian.SuggestModal {
         this.safe       = arguments[3];
         this.parseTitle = arguments[4];
         this.commands    = [
+            { title: '📕  查询24小时内的稍后读', desc: '', type: 'daily' },
             { title: '📗  查询今日的稍后读', desc: '', type: 'today' },
             { title: '📘  查询昨日的稍后读', desc: '', type: 'yestoday' },
-            { title: '📙  查询本周的稍后读', desc: '', type: 'week' },
+            { title: '📙  查询本周的稍后读', desc: '', type: 'sunday' },
+            { title: '📔  查询活跃列表', desc: '', type: 'unarchive' },
+            { title: '📓  查询归档列表', desc: '', type: 'archive' },
         ];
         this.filter     = arguments[6];
         this.unrdist    = arguments[7];
@@ -166,14 +169,30 @@ class SearchModal extends obsidian.Modal {
         this.filter     = arguments[6];
     }
 
+    SearchKeywordsDesc() {
+        const descEl = document.createDocumentFragment();
+        descEl.appendText( 'Support placeholders:' );
+        descEl.appendChild( document.createElement( 'br' ));
+        descEl.appendText( '{{title}} {{desc}} {{note}} {{tags}} {{annote}} ...' );
+        descEl.appendChild( document.createElement( 'br' ));
+        descEl.appendText( 'For more syntax, refer to ' );
+        const a = document.createElement( 'a' );
+        a.href = 'https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1393730';
+        a.text = 'format reference';
+        a.target = '_blank';
+        descEl.appendChild( a );
+        descEl.appendText( '.' );
+        return descEl;
+    }
+
     onOpen() {
         const { contentEl } = this;
 
         contentEl.createEl( 'h2', { text: 'Advanced search' });
 
         new obsidian.Setting( contentEl )
-            .setName( 'Search' )
-            .setDesc( 'desc, note, tag, annote and any' )
+            .setName( 'Search Keywords' )
+            .setDesc( this.SearchKeywordsDesc() )
             .addText( text =>
                 text.onChange( value => {
                     this.result = value;
@@ -211,6 +230,13 @@ class SimpReadPlugin extends obsidian.Plugin {
 
     registerCommands() {
         this.addCommand({
+            id: "sr-command-daily",
+            name: "查询24小时内的稍后读",
+            callback: () => {
+                this.search( 'daily' );
+            }
+        });
+        this.addCommand({
             id: "sr-command-today",
             name: "查询今日的稍后读",
             callback: () => {
@@ -229,6 +255,20 @@ class SimpReadPlugin extends obsidian.Plugin {
             name: "查询本周的稍后读",
             callback: () => {
                 this.search( 'week' );
+            }
+        });
+        this.addCommand({
+            id: "sr-command-unarchive",
+            name: "查询活跃列表",
+            callback: () => {
+                this.search( 'unarchive' );
+            }
+        });
+        this.addCommand({
+            id: "sr-command-archive",
+            name: "查询归档列表",
+            callback: () => {
+                this.search( 'archive' );
             }
         });
         this.addCommand({
@@ -557,6 +597,22 @@ class SimpReadSettingTab extends obsidian.PluginSettingTab {
         return descEl;
     }
 
+    extLinkDesc() {
+        const descEl = document.createDocumentFragment();
+        descEl.appendText( 'Support placeholders:' );
+        descEl.appendChild( document.createElement( 'br' ));
+        descEl.appendText( '{{url}} {{title}} {{timestamp}}' );
+        descEl.appendChild( document.createElement( 'br' ));
+        descEl.appendText( 'For more syntax, refer to ' );
+        const a = document.createElement( 'a' );
+        a.href = 'https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1388527';
+        a.text = 'format reference';
+        a.target = '_blank';
+        descEl.appendChild( a );
+        descEl.appendText( '.' );
+        return descEl;
+    }
+
     templateDesc() {
         const descEl = document.createDocumentFragment();
         descEl.appendText( 'Unread Markdown Template date support:' );
@@ -593,6 +649,32 @@ class SimpReadSettingTab extends obsidian.PluginSettingTab {
         return descEl;
     }
 
+    tagsDesc( value ) {
+        const descEl = document.createDocumentFragment();
+        descEl.appendText( value );
+        descEl.appendChild( document.createElement( 'br' ));
+        descEl.appendText( 'For more syntax, refer to ' );
+        const a = document.createElement( 'a' );
+        a.href = 'https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1388527';
+        a.text = 'format reference';
+        a.target = '_blank';
+        descEl.appendChild( a );
+        descEl.appendText( '.' );
+        return descEl;
+    }
+
+    markdownOptionsDesc() {
+        const descEl = document.createDocumentFragment();
+        descEl.appendText( 'For more syntax, refer to ' );
+        const a = document.createElement( 'a' );
+        a.href = 'https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1388527';
+        a.text = 'format reference';
+        a.target = '_blank';
+        descEl.appendChild( a );
+        descEl.appendText( '.' );
+        return descEl;
+    }
+
     display() {
         let { containerEl } = this;
 
@@ -602,8 +684,7 @@ class SimpReadSettingTab extends obsidian.PluginSettingTab {
         containerEl.getElementsByTagName( 'p' )[0].appendText(' 📚' );
 
         containerEl.createEl( 'h3', { text: 'Sync Server Settings' });
-
-        containerEl.createEl( 'p', { text: 'Sync Server ' }).createEl( 'a', { text: 'reference', href: '' });
+        containerEl.createEl( 'p' ).innerHTML = `Sync Server Settings <a target="_blank" href='https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1388527'>reference</a>.`;
 
         new obsidian.Setting( containerEl )
             .setName( 'Server Host' )
@@ -629,7 +710,35 @@ class SimpReadSettingTab extends obsidian.PluginSettingTab {
                 }))
             );
 
+        containerEl.createEl( 'h3', { text: 'Config Settings' });
+        containerEl.createEl( 'p' ).innerHTML = `Config Settings <a target="_blank" href='https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1389535'>reference</a>.`;
+
+        new obsidian.Setting( containerEl )
+            .setName( 'Customize base folder' )
+            .setDesc( 'By default, the plugin will save all your highlights into a folder named SimpRead' )
+            .addText( text => text
+                .setPlaceholder( 'Defaults to: SimpRead' )
+                .setValue( this.plugin.settings.folder )
+                .onChange( value => __awaiter(this, void 0, void 0, function* () {
+                    this.plugin.settings.folder = obsidian.normalizePath( value || DEFAULT_SETTINGS.folder );
+                    yield this.plugin.saveSettings();
+                }))
+            );
+
+        new obsidian.Setting( containerEl )
+            .setName( 'SimpRead config path' )
+            .setDesc( 'Same as SimpRead Sync path' )
+            .addText( text => text
+                .setPlaceholder( 'Required, do\'nt empty' )
+                .setValue( this.plugin.settings.path )
+                .onChange( value => __awaiter(this, void 0, void 0, function* () {
+                    this.plugin.settings.path = obsidian.normalizePath( value );
+                    yield this.plugin.saveSettings();
+                }))
+            );
+
         containerEl.createEl( 'h3', { text: 'Sync Settings' });
+        containerEl.createEl( 'p' ).innerHTML = `Sync Settings <a target="_blank" href='https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1393730'>reference</a>.`;
 
         new obsidian.Setting( containerEl )
             .setName( 'Sync your SimpRead unread data with Obsidian' )
@@ -683,30 +792,6 @@ class SimpReadSettingTab extends obsidian.PluginSettingTab {
             });
 
         new obsidian.Setting( containerEl )
-            .setName( 'Customize base folder' )
-            .setDesc( 'By default, the plugin will save all your highlights into a folder named SimpRead' )
-            .addText( text => text
-                .setPlaceholder( 'Defaults to: SimpRead' )
-                .setValue( this.plugin.settings.folder )
-                .onChange( value => __awaiter(this, void 0, void 0, function* () {
-                    this.plugin.settings.folder = obsidian.normalizePath( value || DEFAULT_SETTINGS.folder );
-                    yield this.plugin.saveSettings();
-                }))
-            );
-
-        new obsidian.Setting( containerEl )
-            .setName( 'SimpRead config path' )
-            .setDesc( 'Same as SimpRead Sync path' )
-            .addText( text => text
-                .setPlaceholder( 'Required, do\'nt empty' )
-                .setValue( this.plugin.settings.path )
-                .onChange( value => __awaiter(this, void 0, void 0, function* () {
-                    this.plugin.settings.path = obsidian.normalizePath( value );
-                    yield this.plugin.saveSettings();
-                }))
-            );
-
-        new obsidian.Setting( containerEl )
             .setName( 'Write only exist annotations with unread' )
             .setDesc( 'When unread not exist annotations, not saved to Obsidian.' )
             .addToggle( toggle => {
@@ -718,6 +803,7 @@ class SimpReadSettingTab extends obsidian.PluginSettingTab {
             });
 
         containerEl.createEl( 'h3', { text: 'Markdown Template Settings' });
+        containerEl.createEl( 'p' ).innerHTML = `Markdown Template Settings <a target="_blank" href='https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1420516'>reference</a>.`;
 
         new obsidian.Setting( containerEl )
             .setName( 'Customize Title' )
@@ -733,6 +819,7 @@ class SimpReadSettingTab extends obsidian.PluginSettingTab {
 
         new obsidian.Setting( containerEl )
             .setName( 'Customize External link' )
+            .setDesc( this.extLinkDesc() )
             .addText( text => text
                 .setPlaceholder( 'Defaults to: empty' )
                 .setValue( this.plugin.settings.ext_uri )
@@ -776,7 +863,7 @@ class SimpReadSettingTab extends obsidian.PluginSettingTab {
 
         new obsidian.Setting( containerEl )
             .setName( 'Customize Tag Prefix' )
-            .setDesc( 'For example: when value is #, show as #tag1 #tag2' )
+            .setDesc( this.tagsDesc( 'For example: when value is #, show as #tag1 #tag2' ))
             .addText( text => text
                 .setPlaceholder( 'Defaults to: #' )
                 .setValue( this.plugin.settings.tag_prefix )
@@ -788,7 +875,7 @@ class SimpReadSettingTab extends obsidian.PluginSettingTab {
 
         new obsidian.Setting( containerEl )
             .setName( 'Customize Tag Suffix' )
-            .setDesc( 'For example: when value is , show as #tag1, #tag2' )
+            .setDesc( this.tagsDesc( 'For example: when value is , show as #tag1, #tag2' ))
             .addText( text => text
                 .setPlaceholder( 'Defaults to: space' )
                 .setValue( this.plugin.settings.tag_suffix )
@@ -800,6 +887,7 @@ class SimpReadSettingTab extends obsidian.PluginSettingTab {
 
         new obsidian.Setting( containerEl )
             .setName( 'Customize Markdown Options' )
+            .setDesc( this.markdownOptionsDesc() )
             .addText( text => text
                 .setPlaceholder( 'Defaults to: empty' )
                 .setValue( this.plugin.settings.format )
@@ -808,6 +896,9 @@ class SimpReadSettingTab extends obsidian.PluginSettingTab {
                     yield this.plugin.saveSettings();
                 }))
             );
+
+        containerEl.createEl( 'h3', { text: 'Commands Support' });
+        containerEl.createEl( 'p' ).innerHTML = `Commands Support <a target="_blank" href='https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1420517'>reference</a>.`;
 
         const help = containerEl.createEl( 'p' );
         help.innerHTML = `Question? Please see our <a href='https://github.com/Kenshin/simpread/discussions/2889'>Documentation</a> 🙂`;
