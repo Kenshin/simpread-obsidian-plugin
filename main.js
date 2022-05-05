@@ -72,15 +72,187 @@ let colors = [ '#B4D9FB', '#ffeb3b', '#a2e9f2', '#a1e0ff', '#a8ea68', '#ffb7da' 
 `
 }
 
+const DEFAULT_COMMANDS = [{ title: '↩️  返回上级菜单查看全部命令', desc: '', idx: 'all' }, { title: '🗃  打开高级查询对话框', desc: '', idx: 'search' }, { title: '┅', desc: '', idx: 'divider' }];
+
+class CommandsSuggest extends obsidian.SuggestModal {
+
+    constructor() {
+        super( ...arguments );
+        this.settings   = arguments[1];
+        this.template2  = arguments[2];
+        this.safe       = arguments[3];
+        this.parseTitle = arguments[4];
+        this.commands    = [
+            { title: '📗  查询今日的稍后读', desc: '', type: 'today' },
+            { title: '📘  查询昨日的稍后读', desc: '', type: 'yestoday' },
+            { title: '📙  查询本周的稍后读', desc: '', type: 'week' },
+        ];
+        this.filter     = arguments[6];
+        this.unrdist    = arguments[7];
+    }
+
+    getSuggestions( query ) {
+        return this.commands.filter( command =>
+            command.title.toLowerCase().includes( query.toLowerCase() )
+        );
+    }
+
+    renderSuggestion( command, el ) {
+        el.createEl( 'div',   { text: command.title });
+        el.createEl( 'small', { text: command.desc  });
+    }
+
+    onChooseSuggestion( command, evt ) {
+        let arr = this.filter( command.type , this.unrdist );
+        arr     = DEFAULT_COMMANDS.concat( arr );
+        new UnreadSuggest( this.app, this.settings, this.template2, this.safe, this.parseTitle, arr, this.filter, this.unrdist ).open();
+    }
+}
+
+class UnreadSuggest extends obsidian.SuggestModal {
+
+    constructor() {
+        super( ...arguments );
+        this.settings   = arguments[1];
+        this.template2  = arguments[2];
+        this.safe       = arguments[3];
+        this.parseTitle = arguments[4];
+        this.unreads    = arguments[5];
+        this.filter     = arguments[6];
+        this.unrdist    = arguments[7];
+    }
+
+    getSuggestions( query ) {
+        return this.unreads.filter( unread =>
+            unread.title.toLowerCase().includes( query.toLowerCase() )
+        );
+    }
+
+    renderSuggestion( unread, el ) {
+        el.createEl( 'div',   { text: unread.title });
+        el.createEl( 'small', { text: unread.desc  });
+    }
+
+    onChooseSuggestion( unread, evt ) {
+        if ( unread.idx == 'divider' ) return;
+        if ( unread.idx == 'all' || unread.idx == 'search' ) {
+            unread.idx == 'all'    && new CommandsSuggest( this.app, this.settings, this.template2, this.safe, this.parseTitle, [], this.filter, this.unrdist ).open();
+            unread.idx == 'search' && new SearchModal( this.app, this.settings, this.template2, this.safe, this.parseTitle, this.unrdist, this.filter ).open();
+            return;
+        }
+        if ( !unread.annotations ) unread.annotations = [];
+        try {
+            this.template2( unread, this.unrdist, md => {
+                const path  = this.app.vault.adapter.basePath + '/' + this.settings.folder,
+                      title = this.safe( this.parseTitle( this.settings.title, unread ));
+                this.app.vault.adapter.fs.writeFileSync( path + '/' + title + '.md', md );
+            });
+        } catch ( error ) {
+            console.error( 'current unread write error: ', error, unread )
+        }
+    }
+}
+
+class SearchModal extends obsidian.Modal {
+
+    constructor() {
+        super( ...arguments );
+        this.arguments = arguments;
+        this.settings   = arguments[1];
+        this.template2  = arguments[2];
+        this.safe       = arguments[3];
+        this.parseTitle = arguments[4];
+        this.unrdist    = arguments[5];
+        this.filter     = arguments[6];
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+
+        contentEl.createEl( 'h2', { text: 'Advanced search' });
+
+        new obsidian.Setting( contentEl )
+            .setName( 'Search' )
+            .setDesc( 'desc, note, tag, annote and any' )
+            .addText( text =>
+                text.onChange( value => {
+                    this.result = value;
+                }));
+
+        new obsidian.Setting( contentEl )
+            .addButton( btn =>
+                btn
+                .setButtonText( 'Search' )
+                .setCta()
+                .onClick(() => {
+                    let arr = this.filter( this.result.includes( ':' ) ? this.result : 'any', this.unrdist, this.result );
+                    arr     = DEFAULT_COMMANDS.concat( arr );
+                    new UnreadSuggest( this.app, this.settings, this.template2, this.safe, this.parseTitle, arr, this.filter, this.unrdist ).open();
+                    this.close();
+                }));
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
+}
+
 class SimpReadPlugin extends obsidian.Plugin {
 
     constructor() {
         super( ...arguments );
         this.scheduleInterval = null;
         this.srv = null;
+        this.registerCommands();
         engine();
         setTimeout( () => this.server(), 400 )
     }
+
+    registerCommands() {
+        this.addCommand({
+            id: "sr-command-today",
+            name: "查询今日的稍后读",
+            callback: () => {
+                this.search( 'today' );
+            }
+        });
+        this.addCommand({
+            id: "sr-command-yestoday",
+            name: "查询昨日的稍后读",
+            callback: () => {
+                this.search( 'yestoday' );
+            }
+        });
+        this.addCommand({
+            id: "sr-command-week",
+            name: "查询本周的稍后读",
+            callback: () => {
+                this.search( 'week' );
+            }
+        });
+        this.addCommand({
+            id: "sr-command-search",
+            name: "高级查询",
+            callback: () => {
+                this.search( 'search' );
+            }
+        });
+    }
+
+    search( type ) {
+        this.config( () => {
+            if ( type == 'search' ) {
+                new SearchModal( this.app, this.settings, this.template2, this.safe, this.parseTitle, this.unrdist, this.filter ).open();
+            } else {
+                let arr = this.filter( type, this.unrdist );
+                arr     = DEFAULT_COMMANDS.concat( arr );
+                new UnreadSuggest( this.app, this.settings, this.template2, this.safe, this.parseTitle, arr, this.filter, this.unrdist ).open();
+            }
+        });
+    }
+
+    filter(type,arr,str){if(type=="today"){arr=arr.filter(item=>{const today=new Date(),date=new Date(item.create.replace(/年|月/ig,"-").replace("日",""));return today.getFullYear()==date.getFullYear()&&today.getMonth()==date.getMonth()&&today.getDate()==date.getDate()})}else if(type=="yestoday"){arr=arr.filter(item=>{const now=new Date(),year=now.getFullYear(),month=now.getMonth()+1,day=now.getDate(),oneday=24*60*60*1000,today=+new Date(`${year}-${month}-${day}00:00:00`),yestoday=+new Date(`${year}-${month}-${day}23:59:59`)-oneday,date=+new Date(item.create.replace(/年|月/ig,"-").replace("日",""));return date+oneday>yestoday&&date<today})}else if(type=="week"){arr=arr.filter(item=>{const now=new Date(),year=now.getFullYear(),month=now.getMonth()+1,day=now.getDate(),week=7*24*60*60*1000,today=+new Date(`${year}-${month}-${day}23:59:59`),date=+new Date(item.create.replace(/年|月/ig,"-").replace("日",""));return date+week>today})}else if(type=="sunday"){const now=new Date(),nowTime=now.getTime(),day=now.getDay()||7,oneday=24*60*60*1000,format=(date,time)=>{date=new Date(date);const year=date.getFullYear(),month=date.getMonth()+1,day=date.getDate();return+new Date(`${year}-${month}-${day}${time}`)},monday=format(nowTime-(day-1)*oneday,"00:00:00"),sunday=format(nowTime+(7-day)*oneday,"23:59:59");arr=arr.filter(item=>{const date=+new Date(item.create.replace(/年|月/ig,"-").replace("日",""));return date>=monday&&date<=sunday})}else if(type=="daily"){arr=arr.filter(item=>{const now=+new Date(),oneday=24*60*60*1000*1,date=+new Date(item.create.replace(/年|月/ig,"-").replace("日",""));return now-date<=oneday})}else if(type=="nohighlight"){arr=arr.filter(item=>!item.annotations||item.annotations.length==0)}else if(type=="notags"){arr=arr.filter(item=>!item.tags||item.tags.length==0)}else if(type=="unarchive"){arr=arr.filter(item=>!item.archive)}else if(type=="archive"){arr=arr.filter(item=>item.archive)}else if(type=="share"){arr=arr.filter(item=>item.share)}else if(type=="annoate"){let list=[];arr.forEach(unread=>{const find=annotations=>{let include=false;annotations&&annotations.forEach(t=>{t.note==undefined&&(t.note="");(t.note=="")&&(include=true)});include&&list.push(unread)};find(unread.annotations)});arr=list}else if(type=="img"||type=="code"){let list=[];arr.forEach(unread=>{const find=annotations=>{let include=false;annotations&&annotations.forEach(t=>t.type==type&&(include=true));include&&list.push(unread)};find(unread.annotations)});arr=list}else if(type=="note"){let list=[];arr.forEach(unread=>{const find=annotations=>{let include=false;annotations&&annotations.forEach(t=>t.note&&t.note.length>0&&(include=true));include&&list.push(unread)};unread.note&&unread.note.length>0&&list.push(unread);find(unread.annotations)});arr=list}else if(type=="any"){let list=[];arr.forEach(unread=>{const find=annotations=>{let include=false;annotations&&annotations.forEach(t=>{!t.note&&(t.note='');!t.tags&&(t.tags=[]);if(t.note.includes(str)||t.text.includes(str)||t.tags.includes(str)){include=true}});include&&list.push(unread)};!unread.desc&&(unread.desc='');!unread.note&&(unread.note='');!unread.tags&&(unread.tags=[]);!unread.annotations&&(unread.annotations=[]);if(unread.title.includes(str)||unread.desc.includes(str)||unread.note.includes(str)||unread.tags.includes(str)){list.push(unread)}else find(unread.annotations)});arr=list}else if(type.includes(':')){let list=[];str=type.split(':')[1];type=type.split(':')[0];arr.forEach(unread=>{const find=annotations=>{let include=false;annotations&&annotations.forEach(t=>{type=='annote'&&(type='text');type=='tag'&&(type='tags');!t.note&&(t.note='');!t.tags&&(t.tags=[]);if(t[type].includes(str)){include=true}});include&&list.push(unread)};!unread.desc&&(unread.desc='');!unread.note&&(unread.note='');!unread.tags&&(unread.tags=[]);!unread.annotations&&(unread.annotations=[]);if(['title','desc','note','tags','tag'].includes(type)){type=='tag'&&(type='tags');if(unread[type].includes(str)){list.push(unread)}}if(['note','tags','tag','annote','text'].includes(type)){find(unread.annotations)}});arr=list}return arr}
 
     server() {
         const requestListener = ( req, res ) => {
@@ -120,6 +292,7 @@ class SimpReadPlugin extends obsidian.Plugin {
             yield this.loadSettings();
             this.addSettingTab( new SimpReadSettingTab( this.app, this ));
             yield this.schedule();
+            yield this.config();
         });
     }
 
@@ -137,6 +310,21 @@ class SimpReadPlugin extends obsidian.Plugin {
     saveSettings() {
         return __awaiter( this, void 0, void 0, function* () {
             yield this.saveData( this.settings );
+        });
+    }
+
+    config( callback ) {
+        this.unrdist = [];
+        const path = this.app.vault.adapter.path.resolve( this.settings.path, DEFAULT_SETTINGS.config );
+        this.app.vault.adapter.fs.readFile( path, 'utf8', ( err, result ) => {
+            if ( !err ) {
+                const config  = JSON.parse( result ),
+                      unrdist = config.unrdist;
+                if ( unrdist && unrdist.length > 0 ) {
+                    this.unrdist = [ ...unrdist ];
+                    callback && callback();
+                }
+            }
         });
     }
 
@@ -292,7 +480,7 @@ class SimpReadPlugin extends obsidian.Plugin {
         }
     }
 
-    template2(unread,unrdist,global_callback){const plugin_storage=this.settings;function markdown(data,name,callback,is_return=false,options=""){try{options=JSON.parse(options||"{}")}catch(error){options={}}const turndownService=new TurndownService()(options),md=turndownService.turndown(data);callback&&callback(md)}function AnnoteMDTemplate2(md,md_opts,unread,annote,arr,parseMD,callback){const fmtDate=()=>{var dateFormat=function(){var token=/d{1,4}|m{1,4}|yy(?:yy)?|([HhMsTt])\1?|[LloSZ]|"[^"]*"|'[^']*'/g,timezone=/\b(?:[PMCEA][SDP]T|(?:Pacific|Mountain|Central|Eastern|Atlantic) (?:Standard|Daylight|Prevailing) Time|(?:GMT|UTC)(?:[-+]\d{4})?)\b/g,timezoneClip=/[^-+\dA-Z]/g,pad=function(val,len){val=String(val);len=len||2;while(val.length<len)val="0"+val;return val};return function(date,mask,utc){var dF=dateFormat;if(arguments.length==1&&Object.prototype.toString.call(date)=="[object String]"&&!/\d/.test(date)){mask=date;date=undefined}date=date?new Date(date):new Date;if(isNaN(date))throw SyntaxError("invalid date");mask=String(dF.masks[mask]||mask||dF.masks["default"]);if(mask.slice(0,4)=="UTC:"){mask=mask.slice(4);utc=true}var _=utc?"getUTC":"get",d=date[_+"Date"](),D=date[_+"Day"](),m=date[_+"Month"](),y=date[_+"FullYear"](),H=date[_+"Hours"](),M=date[_+"Minutes"](),s=date[_+"Seconds"](),L=date[_+"Milliseconds"](),o=utc?0:date.getTimezoneOffset(),flags={d:d,dd:pad(d),ddd:dF.i18n.dayNames[D],dddd:dF.lang.dayNames.long[D],m:m+1,mm:pad(m+1),mmm:dF.i18n.monthNames[m],mmmm:dF.lang.monthNames.long[m],yy:String(y).slice(2),yyyy:y,h:H%12||12,hh:pad(H%12||12),H:H,HH:pad(H),M:M,MM:pad(M),s:s,ss:pad(s),l:pad(L,3),L:pad(L>99?Math.round(L/10):L),t:H<12?"a":"p",tt:H<12?"am":"pm",T:H<12?"A":"P",TT:H<12?"AM":"PM",Z:utc?"UTC":(String(date).match(timezone)||[""]).pop().replace(timezoneClip,""),o:(o>0?"-":"+")+pad(Math.floor(Math.abs(o)/60)*100+Math.abs(o)%60,4),S:["th","st","nd","rd"][d%10>3?0:(d%100-d%10!=10)*d%10]};return mask.replace(token,function($0){return $0 in flags?flags[$0]:$0.slice(1,$0.length-1)})}}();dateFormat.masks={default:"ddd mmm dd yyyy HH:MM:ss",shortDate:"m/d/yy",mediumDate:"mmm d, yyyy",longDate:"mmmm d, yyyy",fullDate:"dddd, mmmm d, yyyy",shortTime:"h:MM TT",mediumTime:"h:MM:ss TT",longTime:"h:MM:ss TT Z",isoDate:"yyyy-mm-dd",isoTime:"HH:MM:ss",isoDateTime:"yyyy-mm-dd'T'HH:MM:ss",isoUtcDateTime:"UTC:yyyy-mm-dd'T'HH:MM:ss'Z'"};dateFormat.lang={dayNames:{short:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],long:["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],zh:["星期日","星期一","星期二","星期三","星期四","星期五","星期六"],},monthNames:{short:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],long:["January","February","March","April","May","June","July","August","September","October","November","December"],zh:["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"],}};dateFormat.i18n={dayNames:dateFormat.lang.dayNames.short,monthNames:dateFormat.lang.monthNames.short,};dateFormat.setLocal=function(local){dateFormat.i18n={dayNames:dateFormat.lang.dayNames[local],monthNames:dateFormat.lang.monthNames[local],}};return dateFormat},fmtDate2=(x,y)=>{var z={M:x.getMonth()+1,d:x.getDate(),h:x.getHours(),m:x.getMinutes(),s:x.getSeconds()};y=y.replace(/(M+|d+|h+|m+|s+)/g,function(v){return((v.length>1?"0":"")+z[v.slice(-1)]).slice(-2)});return y.replace(/(y+)/g,function(v){return x.getFullYear().toString().slice(-v.length)})},parseDateOld=id=>{const arr=md.match(/{{date_format\|[\S ]+\|[\S ]+}} /);let replace="";try{if(arr&&arr.length>0){replace=arr[0];const item=arr[0].replace("{{date_format|","").replace("}}","");const keys=item.split("|"),type=keys[0],fmt=keys[1];if(type=="now"){replace=fmtDate2(new Date(),fmt)}else if(type=="id"&&id){replace=fmtDate2(new Date(id),fmt)}}return replace}catch(error){return replace}},findUnReadbyID=(idx,arr)=>{for(let i=0;i<arr.length;i++){if(arr[i].idx==idx){return arr[i]}}},findAnnotebyID=(id,arr)=>{for(let i=0;i<arr.length;i++){const target=arr[i],index=target.annotations&&target.annotations.findIndex(item=>item.id==id);if(index>-1){return{unread:target,annote:target.annotations[index]}}}return{unread:{},annote:{}}},parseTitle=unread=>{return title=plugin_storage.title&&unread?plugin_storage.title.replace(/{{id}}/ig,unread.idx).replace(/{{title}}/ig,unread.title).replace(/{{un_title}}/ig,unread.title).replace(/{{timestamp}}/ig,unread.create.replace(/年|月|日|:| /ig,'')).replace(/{{now\|[\w-\/ :]+}}/ig,parseDate2).replace(/{{note}}/ig,unread.note||unread.title):unread?unread.title:'<解析失败>'},parseExt=(url,unread)=>{return url&&unread?url.replace(/{{id}}/ig,unread.idx).replace(/{{title}}/ig,unread.title).replace(/{{un_title}}/ig,unread.title).replace(/{{timestamp}}/ig,unread.create.replace(/年|月|日|:| /ig,'')).replace(/{{now\|[\w-\/ :]+}}/ig,parseDate2).replace(/{{note}}/ig,unread.note||unread.title):url},parseURLScheme=url=>{return new URL(url)},parseTags=tags=>{let html='';plugin_storage.tag_suffix=='\\n'&&(plugin_storage.tag_suffix='\n');tags&&tags.forEach(tag=>html+=plugin_storage.tag_prefix+`${tag.replace(/ /ig,'_')}`+plugin_storage.tag_suffix);return html.trim()},parseTag=(match,tags)=>{let tmpl='';match=match.replace(/\{|\}/ig,'');const arr=match.split('|'),pre=arr[0],suf=arr[2];tags&&tags.forEach(item=>tmpl+=pre+item+(suf=='\\n'?'\n':suf));if(arr.length==4){tmpl=tmpl.replace(new RegExp(arr[3]+'$'),'')}return tmpl},parseRefs=refs=>{let tmpl="";refs&&refs.split("\n").forEach(url=>{if(url.startsWith('<')){url=url.replace(/^<|>$/g,'');tmpl+=`[${url}](<${url}>)`+"\n"}else{tmpl+=url+"\n"}});return tmpl.trim()},parseInline=(type,value)=>{const reg=new RegExp(`{{\[\\S\]\+\\|${type}}}`);if(reg.test(md)){let str="";const prefix=md.match(reg)[0].replace(/{|{|}|}|}|\|/ig,"").replace(type,"");value&&value.split("\n").forEach(item=>str+=prefix+" "+item+"\n");return str.trim()}else return value},parseUrl=(type,id,text,html)=>{if(type=="org"){return unread.url+"#:~:text="+encodeURIComponent(text)}else if(type=="int"){return"http://localhost:7026/reading/"+unread.idx+(id?"#id="+id:'')}else if(type=="ext"){let ext_uri=plugin_storage.ext_uri;if(ext_uri.startsWith('https://simpread.pro/@')){return ext_uri?ext_uri+unread.idx+(id?"#id="+id:''):`{{ext_uri}}`}else{ext_uri=parseExt(plugin_storage.ext_uri,unread);return ext_uri+(id?"#id="+id:'')}}},parseDate=(match,id)=>{const dateFormat=fmtDate(),[type,format,lang]=match.replace(/{|}/ig,'').split('|');dateFormat.setLocal(lang||'short');let day='';if(type=='create'){day=id.replace(/年|月/ig,'-').replace(/日/ig,'')}else day=new Date(id);const date=dateFormat(day,format);return date},parseDate2=match=>{const str=match.replace(/(\{\{now\|)|(\}\})/ig,''),date=fmtDate()(+new Date(),str);return date},parseTimetamp=(day)=>{const date=fmtDate()(day,'yyyyddmmHHMMss');return date},parseBakinks=backlinks=>{let tmpl="";backlinks&&backlinks.forEach(backlink=>{if(backlink.type=='unread'){const unread=findUnReadbyID(backlink.id,unrdist);unread&&(tmpl+=`${parseTitle(unread)}`)}else if(backlink.type=='annote'){const result=findAnnotebyID(backlink.id,unrdist);if(result){const unread=result.unread,annote=result.annote;unread&&!$.isEmptyObject(unread)&&(tmpl+=`${parseTitle(unread)}`)}}});return tmpl.trim()},parseFormat=(match)=>{const arr=match.split('|'),tag=arr[1],img=arr[arr.length-1].replace(/}{3}$/,'');if(/<\w+>/.test(tag)){return match}else{return tag+' '+img}},parseAnnote=()=>{const loop=md.match(/{{#each}}[\S\n ]+{{\/each}}/ig);const fmtDate=time=>{const date=new Date(time),format=value=>value=value<10?"0"+value:value;return date.getFullYear()+"年"+format(date.getMonth()+1)+"月"+format(date.getDate())+"日 "+format(date.getHours())+":"+format(date.getMinutes())+":"+format(date.getSeconds())};if(loop&&loop.length>0){let str="",tmpl=loop[0].replace("{{#each}}","").replace("{{/each}}","").trim();arr&&arr.forEach(annotate=>{const{type,text,html,note,tags,id,refs}=annotate;let content="";if(type=="img"){content=`![](${text})`}else if(type=="code"){content="```\n"+text.trim()+"\n```"}else if(type=="paragraph"){content=parseMD(html,undefined,undefined,true,md_opts.format)}str+=tmpl.replace(/{{an_create}}/ig,fmtDate(id)).replace(/{{an_html}}/ig,content).replace(/{{an_timestamp}}/ig,parseTimetamp(id)).replace(/{{an_id}}/ig,id).replace(/{{an_text}}/ig,text).replace(/{{an_short_text}}/ig,text.substr(0,20)+(text.length>10?"...":"")).replace(/{{an_note}}/ig,note).replace(/{{an_tags}}/ig,parseTags(tags)).replace(/{{[ \S]+\|an_text}}/ig,parseInline("an_text",text)).replace(/{{[ \S]+\|an_html}}/ig,parseInline("an_html",content)).replace(/{{[ \S]+\|an_note}}/ig,parseInline("an_note",note)).replace(/{{[ \S]+\|an_refs}}/ig,parseInline("an_refs",parseRefs(refs))).replace(/{{[ \S]+\|an_backlinks}}/ig,parseInline("an_backlinks",parseBakinks(annotate.backlinks))).replace(/{{an_backlinks}}/ig,parseBakinks(annotate.backlinks)).replace(/{{date_format\|[\S ]+\|[\S ]+}}/,parseDateOld(id)).replace(/{{an_org_uri}}/ig,parseUrl("org",id,text)).replace(/{{an_int_uri}}/ig,parseUrl("int",id,text)).replace(/{{an_ext_uri}}/ig,parseUrl("ext",id,text))+"\n"});return str}else return""};if(callback){callback({parseURLScheme,fmtDate,parseBakinks,});return}if(annote){const{type,text,html,note,tags,id,refs}=annote;let content="";if(type=="img"){content=`![](${text})`}else if(type=="code"){content="```\n"+text.trim()+"\n```"}else if(type=="paragraph"){content=html}md=md.replace(/{{an_create\|[ \S]+}}/ig,match=>parseDate(match,id)).replace(/{{now\|[ \S]+}}/ig,match=>parseDate(match,+new Date())).replace(/{{an_timestamp}}/ig,parseTimetamp(id)).replace(/{{an_html}}/ig,content).replace(/{{an_id}}/ig,id).replace(/{{an_text}}/ig,text).replace(/{{an_short_text}}/ig,text.substr(0,20)+(text.length>10?"...":"")).replace(/{{an_note}}/ig,note).replace(/{{an_tags}}/ig,parseTags(tags)).replace(/{{[\S ]+\|tag\|[\S ]+}}/ig,match=>parseTag(match,tags)).replace(/{{[ \S]+\|an_text}}/ig,parseInline("an_text",text)).replace(/{{[ \S]+\|an_html}}/ig,parseInline("an_html",content)).replace(/{{[ \S]+\|an_note}}/ig,parseInline("an_note",note)).replace(/{{[ \S]+\|an_refs}}/ig,parseInline("an_refs",parseRefs(refs))).replace(/{{[ \S]+\|an_backlinks}}/ig,parseInline("an_backlinks",parseBakinks(annote.backlinks))).replace(/{{an_backlinks}}/ig,parseBakinks(annote.backlinks)).replace(/{{an_org_uri}}/ig,parseUrl("org",id,text,html)).replace(/{{an_int_uri}}/ig,parseUrl("int",id,text)).replace(/{{an_ext_uri}}/ig,parseUrl("ext",id,text)).replace(/{{an_refs}}/ig,parseInline("an_refs",parseRefs(unread.refs))).replace(/{{3}html\_format\|[^|]+\|!\[\S?\]\([a-zA-z]+:\/\/[^\s]*\}\}\}/ig,parseFormat)}else{md=md.replace(/{{create\|[ \S]+}}/ig,match=>parseDate(match,unread.create)).replace(/{{now\|[ \S]+}}/ig,match=>parseDate(match,+new Date())).replace(/{{date_format\|[\S ]+\|[\S ]+}}/,parseDateOld()).replace(/{{idx}}/ig,unread.idx).replace(/{{url}}/ig,unread.url).replace(/{{title}}/ig,unread.title).replace(/{{create}}/ig,unread.create).replace(/{{timestamp}}/ig,unread.create.replace(/年|月|日|:| /ig,'')).replace(/{{desc}}/ig,unread.desc).replace(/{{note}}/ig,unread.note).replace(/{{backlinks}}/ig,parseBakinks(unread.backlinks)).replace(/{{host}}/ig,parseURLScheme(unread.url).host).replace(/{{tags}}/ig,parseTags(unread.tags)).replace(/{{[\S ]+\|tag\|[\S ]+}}/ig,match=>parseTag(match,unread.tags)).replace(/{{int_uri}}/ig,parseUrl("int")).replace(/{{ext_uri}}/ig,parseUrl("ext")).replace(/{{org_uri}}/ig,parseUrl("org")).replace(/{{refs}}/ig,parseInline("refs",parseRefs(unread.refs))).replace(/{{[ \S]+\|refs}}/ig,parseInline("refs",parseRefs(unread.refs))).replace(/{{[ \S]+\|desc}}/ig,parseInline("desc",unread.desc)).replace(/{{[ \S]+\|note}}/ig,parseInline("note",unread.note)).replace(/{{[ \S]+\|backlinks}}/ig,parseInline("backlinks",parseBakinks(unread.backlinks)));md=md.replace(/{{#each}}[\S\n ]+{{\/each}}/ig,parseAnnote(unread.annotations))}return md}function mdtemplate(unread){let str=plugin_storage.template,an_str=plugin_storage.annotation;const html_format=(value,tag,callback)=>{let option=plugin_storage.format;try{if(!option){option=JSON.stringify({bulletListMarker:'-'})}else{option=JSON.parse(option);option={...{bulletListMarker:'-'},...option}}}catch(error){option=JSON.stringify({bulletListMarker:'-'});console.error('format_html option error',error)}if(/^```/i.test(value)&&/```$/i.test(value)){value=value.replace(/</ig,'&lt;').replace(/>/ig,'&gt;')}if(!tag){value=`<p>${value}</p>`}else if(tag=='>'){value=`<blockquote>${value}</blockquote>`}else if(tag=='-'||tag=='*'){value=`<li>${value}</li>`}else if(/<\w+>/.test(tag)){tag=tag.replace(/<|>/ig,'');value=`<${tag}>${value}</<${tag}>`}value=value.replace(/\n/ig,'<br>');markdown(value,undefined,md=>{callback(md)},false,JSON.stringify(option))};let template=ejs.render(str,{unread});template=AnnoteMDTemplate2(template,plugin_storage,unread,undefined,unread.annotations,markdown);const arr=template.match(/{{3}html\_format\|[^|]+\|[^{{{]+}{3}|{{3}html\_format\|[^|]+\|[^]+}{3}/ig)||[],max=arr.length,mds=[];let i=0;const loop=str=>{const tag=str.split('|')[1],html=str.replace('{{{html_format|'+tag+'|','').replace(/}}}$/,'');html_format(html,tag,md=>{mds.push(md);i++;if(i<max){loop(arr[i])}else{console.log('md template replace ',arr,mds);arr.forEach((repl,idx)=>{template=template.replace(repl,mds[idx])});if(/{{annotations}}/.test(template)){an_template()}else{ending()}}})};const an_template=()=>{let an_tmpl='',i=0;const max=unread.annotations.length;const an_loop=md=>{an_tmpl+=md;i++;if(i<max){antemplate(an_str,unread,unread.annotations[i],html_format,an_loop)}else{template=template.replace('{{annotations}}',an_tmpl);ending()}};max>0?antemplate(an_str,unread,unread.annotations[i],html_format,an_loop):ending()};const ending=()=>{console.log('unread template is ',template);global_callback?global_callback(template):console.log('unread template is ',template)};try{if(max>0)loop(arr[i]);else{an_template()}}catch(error){console.log(error)}}function antemplate(str,unread,annote,html_format,callback){let template=ejs.render(str,{annote});template=AnnoteMDTemplate2(template,plugin_storage,unread,annote,unread.annotations,markdown);const arr=template.match(/{{3}html\_format\|[^|]+\|[^{{{]+}{3}|{{3}html\_format\|[^|]+\|[^]+}{3}/ig)||[],max=arr.length,mds=[];let i=0;const loop=str=>{const tag=str.split('|')[1],html=str.replace('{{{html_format|'+tag+'|','').replace(/}}}$/,'');html_format(html,tag,md=>{mds.push(md);i++;if(i<max){loop(arr[i])}else{arr.forEach((repl,idx)=>{template=template.replace(repl,mds[idx])});callback(template)}})};if(max>0)loop(arr[i]);else{callback(template)}}mdtemplate(unread)}
+    template2(unread,unrdist,global_callback){const plugin_storage=this.settings;function markdown(data,name,callback,is_return=false,options=""){try{options=JSON.parse(options||"{}")}catch(error){options={}}const turndownService=new TurndownService()(options),md=turndownService.turndown(data);callback&&callback(md)}function AnnoteMDTemplate2(md,md_opts,unread,annote,arr,parseMD,callback){const fmtDate=()=>{var dateFormat=function(){var token=/d{1,4}|m{1,4}|yy(?:yy)?|([HhMsTt])\1?|[LloSZ]|"[^"]*"|'[^']*'/g,timezone=/\b(?:[PMCEA][SDP]T|(?:Pacific|Mountain|Central|Eastern|Atlantic) (?:Standard|Daylight|Prevailing) Time|(?:GMT|UTC)(?:[-+]\d{4})?)\b/g,timezoneClip=/[^-+\dA-Z]/g,pad=function(val,len){val=String(val);len=len||2;while(val.length<len)val="0"+val;return val};return function(date,mask,utc){var dF=dateFormat;if(arguments.length==1&&Object.prototype.toString.call(date)=="[object String]"&&!/\d/.test(date)){mask=date;date=undefined}date=date?new Date(date):new Date;if(isNaN(date))throw SyntaxError("invalid date");mask=String(dF.masks[mask]||mask||dF.masks["default"]);if(mask.slice(0,4)=="UTC:"){mask=mask.slice(4);utc=true}var _=utc?"getUTC":"get",d=date[_+"Date"](),D=date[_+"Day"](),m=date[_+"Month"](),y=date[_+"FullYear"](),H=date[_+"Hours"](),M=date[_+"Minutes"](),s=date[_+"Seconds"](),L=date[_+"Milliseconds"](),o=utc?0:date.getTimezoneOffset(),flags={d:d,dd:pad(d),ddd:dF.i18n.dayNames[D],dddd:dF.lang.dayNames.long[D],m:m+1,mm:pad(m+1),mmm:dF.i18n.monthNames[m],mmmm:dF.lang.monthNames.long[m],yy:String(y).slice(2),yyyy:y,h:H%12||12,hh:pad(H%12||12),H:H,HH:pad(H),M:M,MM:pad(M),s:s,ss:pad(s),l:pad(L,3),L:pad(L>99?Math.round(L/10):L),t:H<12?"a":"p",tt:H<12?"am":"pm",T:H<12?"A":"P",TT:H<12?"AM":"PM",Z:utc?"UTC":(String(date).match(timezone)||[""]).pop().replace(timezoneClip,""),o:(o>0?"-":"+")+pad(Math.floor(Math.abs(o)/60)*100+Math.abs(o)%60,4),S:["th","st","nd","rd"][d%10>3?0:(d%100-d%10!=10)*d%10]};return mask.replace(token,function($0){return $0 in flags?flags[$0]:$0.slice(1,$0.length-1)})}}();dateFormat.masks={default:"ddd mmm dd yyyy HH:MM:ss",shortDate:"m/d/yy",mediumDate:"mmm d, yyyy",longDate:"mmmm d, yyyy",fullDate:"dddd, mmmm d, yyyy",shortTime:"h:MM TT",mediumTime:"h:MM:ss TT",longTime:"h:MM:ss TT Z",isoDate:"yyyy-mm-dd",isoTime:"HH:MM:ss",isoDateTime:"yyyy-mm-dd'T'HH:MM:ss",isoUtcDateTime:"UTC:yyyy-mm-dd'T'HH:MM:ss'Z'"};dateFormat.lang={dayNames:{short:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],long:["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],zh:["星期日","星期一","星期二","星期三","星期四","星期五","星期六"],},monthNames:{short:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],long:["January","February","March","April","May","June","July","August","September","October","November","December"],zh:["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"],}};dateFormat.i18n={dayNames:dateFormat.lang.dayNames.short,monthNames:dateFormat.lang.monthNames.short,};dateFormat.setLocal=function(local){dateFormat.i18n={dayNames:dateFormat.lang.dayNames[local],monthNames:dateFormat.lang.monthNames[local],}};return dateFormat},fmtDate2=(x,y)=>{var z={M:x.getMonth()+1,d:x.getDate(),h:x.getHours(),m:x.getMinutes(),s:x.getSeconds()};y=y.replace(/(M+|d+|h+|m+|s+)/g,function(v){return((v.length>1?"0":"")+z[v.slice(-1)]).slice(-2)});return y.replace(/(y+)/g,function(v){return x.getFullYear().toString().slice(-v.length)})},parseDateOld=id=>{const arr=md.match(/{{date_format\|[\S ]+\|[\S ]+}} /);let replace="";try{if(arr&&arr.length>0){replace=arr[0];const item=arr[0].replace("{{date_format|","").replace("}}","");const keys=item.split("|"),type=keys[0],fmt=keys[1];if(type=="now"){replace=fmtDate2(new Date(),fmt)}else if(type=="id"&&id){replace=fmtDate2(new Date(id),fmt)}}return replace}catch(error){return replace}},findUnReadbyID=(idx,arr)=>{for(let i=0;i<arr.length;i++){if(arr[i].idx==idx){return arr[i]}}},findAnnotebyID=(id,arr)=>{for(let i=0;i<arr.length;i++){const target=arr[i],index=target.annotations&&target.annotations.findIndex(item=>item.id==id);if(index>-1){return{unread:target,annote:target.annotations[index]}}}return{unread:{},annote:{}}},parseTitle=unread=>{return title=plugin_storage.title&&unread?plugin_storage.title.replace(/{{id}}/ig,unread.idx).replace(/{{title}}/ig,unread.title).replace(/{{un_title}}/ig,unread.title).replace(/{{timestamp}}/ig,unread.create.replace(/年|月|日|:| /ig,'')).replace(/{{now\|[\w-\/ :]+}}/ig,parseDate2).replace(/{{note}}/ig,unread.note||unread.title):unread?unread.title:'<解析失败>'},parseExt=(url,unread)=>{return url&&unread?url.replace(/{{id}}/ig,unread.idx).replace(/{{title}}/ig,unread.title).replace(/{{un_title}}/ig,unread.title).replace(/{{timestamp}}/ig,unread.create.replace(/年|月|日|:| /ig,'')).replace(/{{now\|[\w-\/ :]+}}/ig,parseDate2).replace(/{{note}}/ig,unread.note||unread.title):url},parseURLScheme=url=>{return new URL(url)},parseTags=tags=>{let html='';plugin_storage.tag_suffix=='\\n'&&(plugin_storage.tag_suffix='\n');tags&&tags.forEach(tag=>html+=plugin_storage.tag_prefix+`${tag.replace(/ /ig,'_')}`+plugin_storage.tag_suffix);return html.trim()},parseTag=(match,tags)=>{let tmpl='';match=match.replace(/\{|\}/ig,'');const arr=match.split('|'),pre=arr[0],suf=arr[2];tags&&tags.forEach(item=>tmpl+=pre+item+(suf=='\\n'?'\n':suf));if(arr.length==4){tmpl=tmpl.replace(new RegExp(arr[3]+'$'),'')}return tmpl},parseRefs=refs=>{let tmpl="";refs&&refs.split("\n").forEach(url=>{if(url.startsWith('<')){url=url.replace(/^<|>$/g,'');tmpl+=`[${url}](<${url}>)`+"\n"}else{tmpl+=url+"\n"}});return tmpl.trim()},parseInline=(type,value)=>{const reg=new RegExp(`{{\[\\S\]\+\\|${type}}}`);if(reg.test(md)){let str="";const prefix=md.match(reg)[0].replace(/{|{|}|}|}|\|/ig,"").replace(type,"");value&&value.split("\n").forEach(item=>str+=prefix+" "+item+"\n");return str.trim()}else return value},parseUrl=(type,id,text,html)=>{if(type=="org"){return unread.url+"#:~:text="+encodeURIComponent(text)}else if(type=="int"){return"http://localhost:7026/reading/"+unread.idx+(id?"#id="+id:'')}else if(type=="ext"){let ext_uri=plugin_storage.ext_uri;if(ext_uri.startsWith('https://simpread.pro/@')){return ext_uri?ext_uri+unread.idx+(id?"#id="+id:''):`{{ext_uri}}`}else{ext_uri=parseExt(plugin_storage.ext_uri,unread);return ext_uri+(id?"#id="+id:'')}}},parseDate=(match,id)=>{const dateFormat=fmtDate(),[type,format,lang]=match.replace(/{|}/ig,'').split('|');dateFormat.setLocal(lang||'short');let day='';if(type=='create'){day=id.replace(/年|月/ig,'-').replace(/日/ig,'')}else day=new Date(id);const date=dateFormat(day,format);return date},parseDate2=match=>{const str=match.replace(/(\{\{now\|)|(\}\})/ig,''),date=fmtDate()(+new Date(),str);return date},parseTimetamp=(day)=>{const date=fmtDate()(day,'yyyyddmmHHMMss');return date},parseBakinks=backlinks=>{let tmpl="";backlinks&&backlinks.forEach(backlink=>{if(backlink.type=='unread'){const unread=findUnReadbyID(backlink.id,unrdist);unread&&(tmpl+=`${parseTitle(unread)}`)}else if(backlink.type=='annote'){const result=findAnnotebyID(backlink.id,unrdist);if(result){const unread=result.unread,annote=result.annote;unread&&!$.isEmptyObject(unread)&&(tmpl+=`${parseTitle(unread)}`)}}});return tmpl.trim()},parseFormat=(match)=>{const arr=match.split('|'),tag=arr[1],img=arr[arr.length-1].replace(/}{3}$/,'');if(/<\w+>/.test(tag)){return match}else{return tag+' '+img}},parseAnnote=()=>{const loop=md.match(/{{#each}}[\S\n ]+{{\/each}}/ig);const fmtDate=time=>{const date=new Date(time),format=value=>value=value<10?"0"+value:value;return date.getFullYear()+"年"+format(date.getMonth()+1)+"月"+format(date.getDate())+"日 "+format(date.getHours())+":"+format(date.getMinutes())+":"+format(date.getSeconds())};if(loop&&loop.length>0){let str="",tmpl=loop[0].replace("{{#each}}","").replace("{{/each}}","").trim();arr&&arr.forEach(annotate=>{const{type,text,html,note,tags,id,refs}=annotate;let content="";if(type=="img"){content=`![](${text})`}else if(type=="code"){content="```\n"+text.trim()+"\n```"}else if(type=="paragraph"){content=parseMD(html,undefined,undefined,true,md_opts.format)}str+=tmpl.replace(/{{an_create}}/ig,fmtDate(id)).replace(/{{an_html}}/ig,content).replace(/{{an_timestamp}}/ig,parseTimetamp(id)).replace(/{{an_id}}/ig,id).replace(/{{an_text}}/ig,text).replace(/{{an_short_text}}/ig,text.substr(0,20)+(text.length>10?"...":"")).replace(/{{an_note}}/ig,note).replace(/{{an_tags}}/ig,parseTags(tags)).replace(/{{[ \S]+\|an_text}}/ig,parseInline("an_text",text)).replace(/{{[ \S]+\|an_html}}/ig,parseInline("an_html",content)).replace(/{{[ \S]+\|an_note}}/ig,parseInline("an_note",note)).replace(/{{[ \S]+\|an_refs}}/ig,parseInline("an_refs",parseRefs(refs))).replace(/{{[ \S]+\|an_backlinks}}/ig,parseInline("an_backlinks",parseBakinks(annotate.backlinks))).replace(/{{an_backlinks}}/ig,parseBakinks(annotate.backlinks)).replace(/{{date_format\|[\S ]+\|[\S ]+}}/,parseDateOld(id)).replace(/{{an_org_uri}}/ig,parseUrl("org",id,text)).replace(/{{an_int_uri}}/ig,parseUrl("int",id,text)).replace(/{{an_ext_uri}}/ig,parseUrl("ext",id,text))+"\n"});return str}else return""};if(callback){callback({parseURLScheme,fmtDate,parseBakinks,});return}if(annote){const{type,text,html,note,tags,id,refs}=annote;let content="";if(type=="img"){content=`![](${text})`}else if(type=="code"){content="```\n"+text.trim()+"\n```"}else if(type=="paragraph"){content=html}md=md.replace(/{{an_create\|[ \S]+}}/ig,match=>parseDate(match,id)).replace(/{{now\|[ \S]+}}/ig,match=>parseDate(match,+new Date())).replace(/{{an_timestamp}}/ig,parseTimetamp(id)).replace(/{{an_html}}/ig,content).replace(/{{an_id}}/ig,id).replace(/{{an_text}}/ig,text).replace(/{{an_short_text}}/ig,text.substr(0,20)+(text.length>10?"...":"")).replace(/{{an_note}}/ig,note).replace(/{{an_tags}}/ig,parseTags(tags)).replace(/{{[\S ]+\|tag\|[\S ]+}}/ig,match=>parseTag(match,tags)).replace(/{{[ \S]+\|an_text}}/ig,parseInline("an_text",text)).replace(/{{[ \S]+\|an_html}}/ig,parseInline("an_html",content)).replace(/{{[ \S]+\|an_note}}/ig,parseInline("an_note",note)).replace(/{{[ \S]+\|an_refs}}/ig,parseInline("an_refs",parseRefs(refs))).replace(/{{[ \S]+\|an_backlinks}}/ig,parseInline("an_backlinks",parseBakinks(annote.backlinks))).replace(/{{an_backlinks}}/ig,parseBakinks(annote.backlinks)).replace(/{{an_org_uri}}/ig,parseUrl("org",id,text,html)).replace(/{{an_int_uri}}/ig,parseUrl("int",id,text)).replace(/{{an_ext_uri}}/ig,parseUrl("ext",id,text)).replace(/{{an_refs}}/ig,parseInline("an_refs",parseRefs(unread.refs))).replace(/{{3}html\_format\|[^|]+\|!\[\S?\]\([a-zA-z]+:\/\/[^\s]*\}\}\}/ig,parseFormat)}else{md=md.replace(/{{create\|[ \S]+}}/ig,match=>parseDate(match,unread.create)).replace(/{{now\|[ \S]+}}/ig,match=>parseDate(match,+new Date())).replace(/{{date_format\|[\S ]+\|[\S ]+}}/,parseDateOld()).replace(/{{idx}}/ig,unread.idx).replace(/{{url}}/ig,unread.url).replace(/{{title}}/ig,unread.title).replace(/{{create}}/ig,unread.create).replace(/{{timestamp}}/ig,unread.create.replace(/年|月|日|:| /ig,'')).replace(/{{desc}}/ig,unread.desc).replace(/{{note}}/ig,unread.note).replace(/{{backlinks}}/ig,parseBakinks(unread.backlinks)).replace(/{{host}}/ig,parseURLScheme(unread.url).host).replace(/{{tags}}/ig,parseTags(unread.tags)).replace(/{{[\S ]+\|tag\|[\S ]+}}/ig,match=>parseTag(match,unread.tags)).replace(/{{int_uri}}/ig,parseUrl("int")).replace(/{{ext_uri}}/ig,parseUrl("ext")).replace(/{{org_uri}}/ig,parseUrl("org")).replace(/{{refs}}/ig,parseInline("refs",parseRefs(unread.refs))).replace(/{{[ \S]+\|refs}}/ig,parseInline("refs",parseRefs(unread.refs))).replace(/{{[ \S]+\|desc}}/ig,parseInline("desc",unread.desc)).replace(/{{[ \S]+\|note}}/ig,parseInline("note",unread.note)).replace(/{{[ \S]+\|backlinks}}/ig,parseInline("backlinks",parseBakinks(unread.backlinks)));md=md.replace(/{{#each}}[\S\n ]+{{\/each}}/ig,parseAnnote(unread.annotations))}return md}function mdtemplate(unread){let str=plugin_storage.template,an_str=plugin_storage.annotation;const html_format=(value,tag,callback)=>{let option=plugin_storage.format;try{if(!option){option=JSON.stringify({bulletListMarker:'-'})}else{option=JSON.parse(option);option={...{bulletListMarker:'-'},...option}}}catch(error){option=JSON.stringify({bulletListMarker:'-'});console.error('format_html option error',error)}if(/^```/i.test(value)&&/```$/i.test(value)){value=value.replace(/</ig,'&lt;').replace(/>/ig,'&gt;')}if(!tag){value=`<p>${value}</p>`}else if(tag=='>'){value=`<blockquote>${value}</blockquote>`}else if(tag=='-'||tag=='*'){value=`<li>${value}</li>`}else if(/<\w+>/.test(tag)){tag=tag.replace(/<|>/ig,'');value=`<${tag}>${value}</<${tag}>`}value=value.replace(/\n/ig,'<br>');markdown(value,undefined,md=>{md=md.replace(/^!\\\[\\\]/i,'![]');callback(md)},false,JSON.stringify(option))};let template=ejs.render(str,{unread});template=AnnoteMDTemplate2(template,plugin_storage,unread,undefined,unread.annotations,markdown);const arr=template.match(/{{3}html\_format\|[^|]+\|[^{{{]+}{3}|{{3}html\_format\|[^|]+\|[^]+}{3}/ig)||[],max=arr.length,mds=[];let i=0;const loop=str=>{const tag=str.split('|')[1],html=str.replace('{{{html_format|'+tag+'|','').replace(/}}}$/,'');html_format(html,tag,md=>{mds.push(md);i++;if(i<max){loop(arr[i])}else{console.log('md template replace ',arr,mds);arr.forEach((repl,idx)=>{template=template.replace(repl,mds[idx])});if(/{{annotations}}/.test(template)){an_template()}else{ending()}}})};const an_template=()=>{let an_tmpl='',i=0;const max=unread.annotations.length;const an_loop=md=>{an_tmpl+=md;i++;if(i<max){antemplate(an_str,unread,unread.annotations[i],html_format,an_loop)}else{template=template.replace('{{annotations}}',an_tmpl);ending()}};max>0?antemplate(an_str,unread,unread.annotations[i],html_format,an_loop):ending()};const ending=()=>{console.log('unread template is ',template);global_callback?global_callback(template):console.log('unread template is ',template)};try{if(max>0)loop(arr[i]);else{an_template()}}catch(error){console.log(error)}}function antemplate(str,unread,annote,html_format,callback){let template=ejs.render(str,{annote});template=AnnoteMDTemplate2(template,plugin_storage,unread,annote,unread.annotations,markdown);const arr=template.match(/{{3}html\_format\|[^|]+\|[^{{{]+}{3}|{{3}html\_format\|[^|]+\|[^]+}{3}/ig)||[],max=arr.length,mds=[];let i=0;const loop=str=>{const tag=str.split('|')[1],html=str.replace('{{{html_format|'+tag+'|','').replace(/}}}$/,'');html_format(html,tag,md=>{mds.push(md);i++;if(i<max){loop(arr[i])}else{arr.forEach((repl,idx)=>{template=template.replace(repl,mds[idx])});callback(template)}})};if(max>0)loop(arr[i]);else{callback(template)}}mdtemplate(unread)}
 
     schedule() {
         window.clearInterval( this.interval );
