@@ -1,7 +1,7 @@
 {
     "id": "simpread",
     "name": "SimpRead Sync",
-    "version": "2.0.0.508-beta2",
+    "version": "2.0.0.509-beta1",
     "minAppVersion": "0.12.10",
     "description": "Auto sync SimpRead unreader",
     "author": "Kenshin",
