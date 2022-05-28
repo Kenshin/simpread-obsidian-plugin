@@ -58,6 +58,10 @@ https://user-images.githubusercontent.com/81074/135744012-ea403cb7-3145-401a-b9d
 
 - [Commands Support](https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1420517)
 
+# 工作流
+
+这是来自 [简悦社区](https://t.me/simpread) 用户 [1wingedangel](https://github.com/1wingedangel) 的基于 Obsidan + SimpRead Unreader Sync 的 [工作流分享](https://github.com/Kenshin/simpread/discussions/3999)。
+
 # 更新日志
 
 https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-2831918
