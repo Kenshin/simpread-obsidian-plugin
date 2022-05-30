@@ -4,7 +4,7 @@
 
 https://user-images.githubusercontent.com/81074/135744012-ea403cb7-3145-401a-b9d5-ac588ff82975.mp4
 
-安装此插件后，在简悦中加入稍后读 / 标注（包括：新增或更新）均可实时同步到 Obsidian 库相应的文件夹中。（每个稍后读（标注）对应一个 Markdown 文件）
+这是简悦推出的 Obsidian 插件，利用此插件可以方便的将简悦的稍后读、标注一键生成文献笔记，不仅如此：还支持标注时实时生成文献笔记、Command Support 支持等功能。
 
 # 意义
 
