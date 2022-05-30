@@ -75,3 +75,15 @@ https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-2831918
 - 在通过此插件生成的 Markdown 的任何改动都可能被覆盖。
 
 - 当删除操作时，仅能删除简悦稍后读，无法同步删除 Obsidian 对应的文件。
+
+# 关联
+
+简悦与 Obsidian 都是基于 Local first 概念，即使只是轻量级使用简悦，也可以实现很多联动：
+
+- [利用简悦插件 Live Editor 来助力你的双向链接笔记剪藏流程](https://zhuanlan.zhihu.com/p/412710060)
+
+- [自动导入标注到 Obsidian（不使用同步助手方案）](https://github.com/Kenshin/simpread/discussions/3932)
+
+- [利用 Dataview + Blue Topaz + Markdown 辅助增强 + 导入到 Obsidian 插件，实现对标注的汇总与回顾](https://github.com/Kenshin/simpread/discussions/3807)
+
+关于简悦与 Obsidian 的更多联动 [请看这里](https://github.com/Kenshin/simpread/discussions?discussions_q=label%3Aobsidian)。
