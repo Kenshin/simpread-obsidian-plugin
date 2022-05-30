@@ -1,16 +1,14 @@
-# 描述
-
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/kenshin/simpread-obsidian-plugin?style=for-the-badge)](https://github.com/kenshin/simpread-obsidian-plugin/releases/latest)
+# 视频
 
 https://user-images.githubusercontent.com/81074/135744012-ea403cb7-3145-401a-b9d5-ac588ff82975.mp4
 
+# 描述
+
 这是简悦推出的 Obsidian 插件，利用此插件可以方便的将简悦的稍后读、标注一键生成文献笔记，不仅如此：还支持标注时实时生成文献笔记、Command Support 支持等功能。
 
-# 意义
+# 版本
 
-通常在 Web 标注的话，大多需要这样的操作步骤：标注后 → 复制 Markdown 到剪切板（或导出 `.md` ） → 粘贴到 Obsidian，相比此方案提供一种更符合直觉的自动化方案：
-
-在 Web 标注，标注的 Markdown 自动出现在你的 Obsdian 库文件夹中。
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/kenshin/simpread-obsidian-plugin?style=for-the-badge)](https://github.com/kenshin/simpread-obsidian-plugin/releases/latest)
 
 # 优势
 
@@ -46,7 +44,9 @@ https://user-images.githubusercontent.com/81074/135744012-ea403cb7-3145-401a-b9d
 
 此插件没有上架到 Obsdian 第三方社区，但仍可以通过 [此方式](https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-2831907) 自动安装。
 
-# 配置
+# 文档
+
+请移步到 [官方文档](https://github.com/Kenshin/simpread/discussions/2889) 查看，以下是各个功能的介绍：
 
 - [Server Settings](https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-1388527)
 
