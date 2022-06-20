@@ -26,6 +26,12 @@ https://user-images.githubusercontent.com/81074/135744012-ea403cb7-3145-401a-b9d
 
 - 得益于简悦精准的阅读模式匹配功能以及 HTML → Markdown 方案，通过此方式生成的 Markdown 的精准度最高，甚至可以匹配数学公式（LaTeX）
 
+# 集成标注功能
+
+得益于 [同步助手 1.1.0](https://github.com/Kenshin/simpread/discussions/4049#discussioncomment-2982511) 的 [标注嵌入模式](https://github.com/Kenshin/simpread/discussions/4070)，终于打通了 Obsidian 标注的最后一道门槛：**在 Obsidian 中标注本地快照并实时同步到你的 Obsidian，不仅如此还可以管理你的稍后读**，详细说明 [请看这里](https://github.com/Kenshin/simpread/discussions/2889#discussioncomment-2983691)。
+
+https://user-images.githubusercontent.com/81074/174549318-892ed045-49f2-4c3f-9674-92c735c6674a.mp4
+
 # 受众
 
 如果你是简悦 + Obsidian 的深度使用者，尤其是使用同步助手的用户，非常建议使用此方式，会节省你大量的时间。
