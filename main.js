@@ -278,6 +278,13 @@ class SimpReadPlugin extends obsidian.Plugin {
                 this.search( 'search' );
             }
         });
+        this.addCommand({
+            id: "sr-command-panel",
+            name: "打开当前文档的本地快照",
+            callback: () => {
+                this.preview();
+            }
+        });
     }
 
     search( type ) {
@@ -311,10 +318,20 @@ class SimpReadPlugin extends obsidian.Plugin {
                     try {
                         body = JSON.parse( body );
                         console.log( 'simpread post data is', body )
-                        this.read( body.title, ( file, md ) => this.update( file, md, body ) );
-                        res.setHeader( 'Content-Type', 'application/json' );
-                        res.writeHead( 200 );
-                        res.end( `{ "code": 200, "message": "simpread data post success" }` );
+                        if ( req.url == '/unread' ) {
+                            const unread = body.unread;
+                            if ( !unread.annotations ) unread.annotations = [];
+                            this.template2( unread, this.unrdist, md => {
+                                const path  = this.app.vault.adapter.basePath + '/' + this.settings.folder,
+                                        title = this.safe( this.parseTitle( this.settings.title, unread ));
+                                this.app.vault.adapter.fs.writeFileSync( path + '/' + title + '.md', md );
+                            });
+                        } else {
+                            this.read( body.title, ( file, md ) => this.update( file, md, body ) );
+                            res.setHeader( 'Content-Type', 'application/json' );
+                            res.writeHead( 200 );
+                            res.end( `{ "code": 200, "message": "simpread data post success" }` );
+                        }
                     } catch ( error ) {
                         console.error( error )
                         res.setHeader( 'Content-Type', 'application/json' );
@@ -337,6 +354,7 @@ class SimpReadPlugin extends obsidian.Plugin {
             yield this.schedule();
             yield this.config();
             yield this.getManifest();
+            yield this.openUnradbylink();
         });
     }
 
@@ -542,7 +560,7 @@ class SimpReadPlugin extends obsidian.Plugin {
     }
 
     template2( unread, unrdist, global_callback ) {
-        const plugin_storage=this.settings;function markdown(e,t,a,n=0,r=""){try{r=JSON.parse(r||"{}")}catch(e){r={}}const i=(new TurndownService)(r),l=i.turndown(e);a&&a(l)}function AnnoteMDTemplate2(c,p,r,t,a,m,e){const s=()=>{u=/d{1,4}|m{1,4}|yy(?:yy)?|([HhMsTt])\1?|[LloSZ]|"[^"]*"|'[^']*'/g,h=/\b(?:[PMCEA][SDP]T|(?:Pacific|Mountain|Central|Eastern|Atlantic) (?:Standard|Daylight|Prevailing) Time|(?:GMT|UTC)(?:[-+]\d{4})?)\b/g,_=/[^-+\dA-Z]/g;var u,h,_,f=function(e,t,a){var n=f;if(1!=arguments.length||"[object String]"!=Object.prototype.toString.call(e)||/\d/.test(e)||(t=e,e=void 0),e=e?new Date(e):new Date,isNaN(e))throw SyntaxError("invalid date");"UTC:"==(t=String(n.masks[t]||t||n.masks.default)).slice(0,4)&&(t=t.slice(4),a=!0);var r=a?"getUTC":"get",i=e[r+"Date"](),l=e[r+"Day"](),c=e[r+"Month"](),s=e[r+"FullYear"](),o=e[r+"Hours"](),g=e[r+"Minutes"](),p=e[r+"Seconds"](),r=e[r+"Milliseconds"](),m=a?0:e.getTimezoneOffset(),d={d:i,dd:y(i),ddd:n.i18n.dayNames[l],dddd:n.lang.dayNames.long[l],m:c+1,mm:y(c+1),mmm:n.i18n.monthNames[c],mmmm:n.lang.monthNames.long[c],yy:String(s).slice(2),yyyy:s,h:o%12||12,hh:y(o%12||12),H:o,HH:y(o),M:g,MM:y(g),s:p,ss:y(p),l:y(r,3),L:y(99<r?Math.round(r/10):r),t:o<12?"a":"p",tt:o<12?"am":"pm",T:o<12?"A":"P",TT:o<12?"AM":"PM",Z:a?"UTC":(String(e).match(h)||[""]).pop().replace(_,""),o:(0<m?"-":"+")+y(100*Math.floor(Math.abs(m)/60)+Math.abs(m)%60,4),S:["th","st","nd","rd"][3<i%10?0:(i%100-i%10!=10)*i%10]};return t.replace(u,function(e){return e in d?d[e]:e.slice(1,e.length-1)})};function y(e,t){for(e=String(e),t=t||2;e.length<t;)e="0"+e;return e}return f.masks={default:"ddd mmm dd yyyy HH:MM:ss",shortDate:"m/d/yy",mediumDate:"mmm d, yyyy",longDate:"mmmm d, yyyy",fullDate:"dddd, mmmm d, yyyy",shortTime:"h:MM TT",mediumTime:"h:MM:ss TT",longTime:"h:MM:ss TT Z",isoDate:"yyyy-mm-dd",isoTime:"HH:MM:ss",isoDateTime:"yyyy-mm-dd'T'HH:MM:ss",isoUtcDateTime:"UTC:yyyy-mm-dd'T'HH:MM:ss'Z'"},f.lang={dayNames:{short:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],long:["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],zh:["星期日","星期一","星期二","星期三","星期四","星期五","星期六"]},monthNames:{short:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],long:["January","February","March","April","May","June","July","August","September","October","November","December"],zh:["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"]}},f.i18n={dayNames:f.lang.dayNames.short,monthNames:f.lang.monthNames.short},f.setLocal=function(e){f.i18n={dayNames:f.lang.dayNames[e],monthNames:f.lang.monthNames[e]}},f},o=(t,e)=>{var a={M:t.getMonth()+1,d:t.getDate(),h:t.getHours(),m:t.getMinutes(),s:t.getSeconds()};return(e=e.replace(/(M+|d+|h+|m+|s+)/g,function(e){return((1<e.length?"0":"")+a[e.slice(-1)]).slice(-2)})).replace(/(y+)/g,function(e){return t.getFullYear().toString().slice(-e.length)})},d=e=>{const t=c.match(/{{date_format\|[\S ]+\|[\S ]+}} /);let a="";try{if(t&&0<t.length){a=t[0];const l=t[0].replace("{{date_format|","").replace("}}","");var n=l.split("|"),r=n[0],i=n[1];"now"==r?a=o(new Date,i):"id"==r&&e&&(a=o(new Date(e),i))}return a}catch(e){return a}},n=e=>title=plugin_storage.title&&e?plugin_storage.title.replace(/{{id}}/gi,e.idx).replace(/{{title}}/gi,e.title).replace(/{{un_title}}/gi,e.title).replace(/{{timestamp}}/gi,e.create.replace(/年|月|日|:| /gi,"")).replace(/{{now\|[\w-\/ :]+}}/gi,y).replace(/{{note}}/gi,e.note||e.title):e?e.title:"<解析失败>",i=e=>new URL(e),u=e=>{let t="";return"\\n"==plugin_storage.tag_suffix&&(plugin_storage.tag_suffix="\n"),e&&e.forEach(e=>t+=plugin_storage.tag_prefix+(""+e.replace(/ /gi,"_"))+plugin_storage.tag_suffix),t.trim()},l=(e,t)=>{let a="";const n=(e=e.replace(/\{|\}/gi,"")).split("|"),r=n[0],i=n[2];return t&&t.forEach(e=>a+=r+e+("\\n"==i?"\n":i)),a=4==n.length?a.replace(new RegExp(n[3]+"$"),""):a},h=e=>{let t="";return e&&e.split("\n").forEach(e=>{e.startsWith("<")?(e=e.replace(/^<|>$/g,""),t+=`[${e}](<${e}>)`+"\n"):t+=e+"\n"}),t.trim()},_=(e,a)=>{const n=new RegExp(`{{[ \\S]+\\|${e}}}`);if(n.test(c)){let t="";const r=c.match(n)[0].replace(/{|{|}|}|}|\|/gi,"").replace(e,"");return a&&a.split("\n").forEach(e=>t+=r+" "+e+"\n"),t.trim()}return a},f=(t,a,n,e)=>{if("org"==t)return r.url+"#:~:text="+encodeURIComponent(n);if("int"==t)return"http://localhost:7026/reading/"+r.idx+(a?"#id="+a:"");if("ext"==t){let e=plugin_storage.ext_uri;return e.startsWith("https://simpread.pro/@")?e?e+r.idx+(a?"#id="+a:""):"{{ext_uri}}":(e=(n=plugin_storage.ext_uri,t=r,n&&t?n.replace(/{{id}}/gi,t.idx).replace(/{{title}}/gi,t.title).replace(/{{un_title}}/gi,t.title).replace(/{{timestamp}}/gi,t.create.replace(/年|月|日|:| /gi,"")).replace(/{{now\|[\w-\/ :]+}}/gi,y).replace(/{{note}}/gi,t.note||t.title):n))+(a?"#id="+a:"")}},g=(e,t)=>{const a=s(),[n,r,i]=e.replace(/{|}/gi,"").split("|");a.setLocal(i||"short");let l="";return l="create"==n?t.replace(/年|月/gi,"-").replace(/日/gi,""):new Date(t),a(l,r)},y=e=>{e=e.replace(/(\{\{now\|)|(\}\})/gi,"");return s()(+new Date,e)},S=e=>{return s()(e,"yyyyddmmHHMMss")},M=e=>{let a="";return e&&e.forEach(e=>{var t;"unread"==e.type?(t=((t,a)=>{for(let e=0;e<a.length;e++)if(a[e].idx==t)return a[e]})(e.id,unrdist))&&(a+=n(t)+" "):"annote"==e.type&&(t=((t,a)=>{for(let e=0;e<a.length;e++){const n=a[e],r=n.annotations&&n.annotations.findIndex(e=>e.id==t);if(-1<r)return{unread:n,annote:n.annotations[r]}}return{unread:{},annote:{}}})(e.id,unrdist))&&(e=t.unread,t.annote,e&&!$.isEmptyObject(e)&&(a+=n(e)+" "))}),a.trim()},k=()=>{const e=c.match(/{{#each}}[\S\n ]+{{\/each}}/gi);if(e&&0<e.length){let o="",g=e[0].replace("{{#each}}","").replace("{{/each}}","").trim();return a&&a.forEach(e=>{const{type:t,text:a,html:n,note:r,tags:i,id:l,refs:c}=e;let s="";"img"==t?s=`![](${a})`:"code"==t?s="```\n"+a.trim()+"\n```":"paragraph"==t&&(s=m(n,void 0,void 0,!0,p.format)),o+=g.replace(/{{an_create}}/gi,(e=>{const t=new Date(e),a=e=>e=e<10?"0"+e:e;return t.getFullYear()+"年"+a(t.getMonth()+1)+"月"+a(t.getDate())+"日 "+a(t.getHours())+":"+a(t.getMinutes())+":"+a(t.getSeconds())})(l)).replace(/{{an_html}}/gi,s).replace(/{{an_timestamp}}/gi,S(l)).replace(/{{an_id}}/gi,l).replace(/{{an_text}}/gi,a).replace(/{{an_short_text}}/gi,a.substr(0,20)+(10<a.length?"...":"")).replace(/{{an_note}}/gi,r).replace(/{{an_tags}}/gi,u(i)).replace(/{{[ \S]+\|an_text}}/gi,_("an_text",a)).replace(/{{[ \S]+\|an_html}}/gi,_("an_html",s)).replace(/{{[ \S]+\|an_note}}/gi,_("an_note",r)).replace(/{{[ \S]+\|an_refs}}/gi,_("an_refs",h(c))).replace(/{{[ \S]+\|an_backlinks}}/gi,_("an_backlinks",M(e.backlinks))).replace(/{{an_backlinks}}/gi,M(e.backlinks)).replace(/{{date_format\|[\S ]+\|[\S ]+}}/,d(l)).replace(/{{an_org_uri}}/gi,f("org",l,a)).replace(/{{an_int_uri}}/gi,f("int",l,a)).replace(/{{an_ext_uri}}/gi,f("ext",l,a))+"\n"}),o}return""};if(!e){if(t){const{type:b,text:x,html:T,note:w,tags:D,id:N,refs:v}=t;let e="";"img"==b?e=`![](${x})`:"code"==b?e="```\n"+x.trim()+"\n```":"paragraph"==b&&(e=T),c=c.replace(/{{an_create\|[ \S]+}}/gi,e=>g(e,N)).replace(/{{now\|[ \S]+}}/gi,e=>g(e,+new Date)).replace(/{{an_timestamp}}/gi,S(N)).replace(/{{an_html}}/gi,e).replace(/{{an_id}}/gi,N).replace(/{{an_text}}/gi,x).replace(/{{an_short_text}}/gi,x.substr(0,20)+(10<x.length?"...":"")).replace(/{{an_note}}/gi,w).replace(/{{an_tags}}/gi,u(D)).replace(/{{[ \S]+\|an_text}}/gi,_("an_text",x)).replace(/{{[ \S]+\|an_html}}/gi,_("an_html",e)).replace(/{{[ \S]+\|an_note}}/gi,_("an_note",w)).replace(/{{[ \S]+\|an_refs}}/gi,_("an_refs",h(v))).replace(/{{[ \S]+\|an_backlinks}}/gi,_("an_backlinks",M(t.backlinks))).replace(/{{an_backlinks}}/gi,M(t.backlinks)).replace(/{{an_org_uri}}/gi,f("org",N,x)).replace(/{{an_int_uri}}/gi,f("int",N,x)).replace(/{{an_ext_uri}}/gi,f("ext",N,x)).replace(/{{an_refs}}/gi,_("an_refs",h(r.refs))).replace(/{{[^{]+\|an_tag\|[^}]+}}/gi,e=>l(e,D)).replace(/{{3}html\_format\|[^|]+\|!\[\S?\]\([a-zA-z]+:\/\/[^\s]*\}\}\}/gi,e=>{const t=e.split("|"),a=t[1],n=t[t.length-1].replace(/}{3}$/,"");return/<\w+>/.test(a)?e:a+" "+n})}else c=(c=c.replace(/{{create\|[ \S]+}}/gi,e=>g(e,r.create)).replace(/{{now\|[ \S]+}}/gi,e=>g(e,+new Date)).replace(/{{date_format\|[\S ]+\|[\S ]+}}/,d()).replace(/{{idx}}/gi,r.idx).replace(/{{url}}/gi,r.url).replace(/{{title}}/gi,r.title).replace(/{{create}}/gi,r.create).replace(/{{timestamp}}/gi,r.create.replace(/年|月|日|:| /gi,"")).replace(/{{desc}}/gi,r.desc).replace(/{{note}}/gi,r.note).replace(/{{backlinks}}/gi,M(r.backlinks)).replace(/{{host}}/gi,i(r.url).host).replace(/{{tags}}/gi,u(r.tags)).replace(/{{int_uri}}/gi,f("int")).replace(/{{ext_uri}}/gi,f("ext")).replace(/{{org_uri}}/gi,f("org")).replace(/{{refs}}/gi,_("refs",h(r.refs))).replace(/{{[ \S]+\|refs}}/gi,_("refs",h(r.refs))).replace(/{{[ \S]+\|desc}}/gi,_("desc",r.desc)).replace(/{{[ \S]+\|note}}/gi,_("note",r.note)).replace(/{{[ \S]+\|backlinks}}/gi,_("backlinks",M(r.backlinks))).replace(/{{[^{]+\|tag\|[^}]+}}/gi,e=>l(e,r.tags))).replace(/{{#each}}[\S\n ]+{{\/each}}/gi,k(r.annotations));return c}e({parseURLScheme:i,fmtDate:s,parseBakinks:M})}function mdtemplate(i){let e=plugin_storage.template,l=plugin_storage.annotation;const c=(e,t,a)=>{let n=plugin_storage.format;try{n=n?{bulletListMarker:"-",...n=JSON.parse(n)}:JSON.stringify({bulletListMarker:"-"})}catch(e){n=JSON.stringify({bulletListMarker:"-"}),console.error("format_html option error",e)}/^```/i.test(e)&&/```$/i.test(e)&&(e=e.replace(/</gi,"&lt;").replace(/>/gi,"&gt;")),t?">"==t?e=`<blockquote>${e}</blockquote>`:"-"==t||"*"==t?e=`<li>${e}</li>`:/<\w+>/.test(t)&&(e=`<${t=t.replace(/<|>/gi,"")}>${e}</<${t}>`):e=`<p>${e}</p>`,markdown(e=e.replace(/\n/gi,"<br>"),void 0,e=>{e=e.replace(/!\\\[\\\]/i,"![]"),a(e)},!1,JSON.stringify(n))};let s=ejs.render(e,{unread:i});const a=(s=AnnoteMDTemplate2(s,plugin_storage,i,void 0,i.annotations,markdown)).match(/{{3}html\_format\|[^|]+\|[^{{{]+}{3}|{{3}html\_format\|[^|]+\|[^]+}{3}/gi)||[],n=a.length,r=[];let o=0;const g=e=>{var t=e.split("|")[1],e=e.replace("{{{html_format|"+t+"|","").replace(/}}}$/,"");c(e,t,e=>{r.push(e),++o<n?g(a[o]):(console.log("md template replace ",a,r),a.forEach((e,t)=>{s=s.replace(e,r[t])}),(/{{annotations}}/.test(s)?p:m)())})},p=()=>{let t="",a=0;const n=i.annotations.length,r=e=>{t+=e,++a<n?antemplate(l,i,i.annotations[a],c,r):(s=s.replace("{{annotations}}",t),m())};0<n?antemplate(l,i,i.annotations[a],c,r):m()},m=()=>{console.log("unread template is ",s),global_callback?global_callback(s):console.log("unread template is ",s)};try{0<n?g(a[o]):p()}catch(e){console.log(e)}}function antemplate(e,t,a,n,r){let i=ejs.render(e,{unread:t,annote:a});const l=(i=AnnoteMDTemplate2(i,plugin_storage,t,a,t.annotations,markdown)).match(/{{3}html\_format\|[^|]+\|[^{{{]+}{3}|{{3}html\_format\|[^|]+\|[^]+}{3}/gi)||[],c=l.length,s=[];let o=0;const g=e=>{var t=e.split("|")[1],e=e.replace("{{{html_format|"+t+"|","").replace(/}}}$/,"");n(e,t,e=>{s.push(e),++o<c?g(l[o]):(l.forEach((e,t)=>{i=i.replace(e,s[t])}),r(i))})};0<c?g(l[o]):r(i)}mdtemplate(unread);
+        const plugin_storage=this.settings;function markdown(e,t,a,r=0,n=""){try{n=JSON.parse(n||"{}")}catch(e){n={}}const i=(new TurndownService)(n);i.escape=e=>e,i.addRule("pre",{filter:["pre"],replacement:e=>"\n\n```\n"+e+"\n```\n\n"}),i.addRule("table",{filter:["table"],replacement:(e,t,a)=>{try{if("md"!=a.table)return t.outerHTML;{const i=e.trim().split("\n"),l=[];for(let e=0;e<i.length;e++){var r,n;1!=e||i[e].startsWith("| -")||(r=i[e].match(/\|/g).length,n="|".repeat(r-1).replace(/\|/g,"|-")+"|",l.push(n)),l.push(i[e])}return l.join("\n")}}catch(e){return t.outerHTML}}}),i.addRule("video",{filter:["video"],replacement:(e,t,a)=>`<video src="${t.src}" control></video>`+"\n\n"}),i.addRule("math",{filter:["math"],replacement:(e,t,a)=>""});n=i.turndown(e);a&&a(n)}function AnnoteMDTemplate2(c,p,n,t,a,m,e){const o=()=>{u=/d{1,4}|m{1,4}|yy(?:yy)?|([HhMsTt])\1?|[LloSZ]|"[^"]*"|'[^']*'/g,h=/\b(?:[PMCEA][SDP]T|(?:Pacific|Mountain|Central|Eastern|Atlantic) (?:Standard|Daylight|Prevailing) Time|(?:GMT|UTC)(?:[-+]\d{4})?)\b/g,_=/[^-+\dA-Z]/g;var u,h,_,f=function(e,t,a){var r=f;if(1!=arguments.length||"[object String]"!=Object.prototype.toString.call(e)||/\d/.test(e)||(t=e,e=void 0),e=e?new Date(e):new Date,isNaN(e))throw SyntaxError("invalid date");"UTC:"==(t=String(r.masks[t]||t||r.masks.default)).slice(0,4)&&(t=t.slice(4),a=!0);var n=a?"getUTC":"get",i=e[n+"Date"](),l=e[n+"Day"](),c=e[n+"Month"](),o=e[n+"FullYear"](),s=e[n+"Hours"](),g=e[n+"Minutes"](),p=e[n+"Seconds"](),n=e[n+"Milliseconds"](),m=a?0:e.getTimezoneOffset(),d={d:i,dd:y(i),ddd:r.i18n.dayNames[l],dddd:r.lang.dayNames.long[l],m:c+1,mm:y(c+1),mmm:r.i18n.monthNames[c],mmmm:r.lang.monthNames.long[c],yy:String(o).slice(2),yyyy:o,h:s%12||12,hh:y(s%12||12),H:s,HH:y(s),M:g,MM:y(g),s:p,ss:y(p),l:y(n,3),L:y(99<n?Math.round(n/10):n),t:s<12?"a":"p",tt:s<12?"am":"pm",T:s<12?"A":"P",TT:s<12?"AM":"PM",Z:a?"UTC":(String(e).match(h)||[""]).pop().replace(_,""),o:(0<m?"-":"+")+y(100*Math.floor(Math.abs(m)/60)+Math.abs(m)%60,4),S:["th","st","nd","rd"][3<i%10?0:(i%100-i%10!=10)*i%10]};return t.replace(u,function(e){return e in d?d[e]:e.slice(1,e.length-1)})};function y(e,t){for(e=String(e),t=t||2;e.length<t;)e="0"+e;return e}return f.masks={default:"ddd mmm dd yyyy HH:MM:ss",shortDate:"m/d/yy",mediumDate:"mmm d, yyyy",longDate:"mmmm d, yyyy",fullDate:"dddd, mmmm d, yyyy",shortTime:"h:MM TT",mediumTime:"h:MM:ss TT",longTime:"h:MM:ss TT Z",isoDate:"yyyy-mm-dd",isoTime:"HH:MM:ss",isoDateTime:"yyyy-mm-dd'T'HH:MM:ss",isoUtcDateTime:"UTC:yyyy-mm-dd'T'HH:MM:ss'Z'"},f.lang={dayNames:{short:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],long:["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],zh:["星期日","星期一","星期二","星期三","星期四","星期五","星期六"]},monthNames:{short:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],long:["January","February","March","April","May","June","July","August","September","October","November","December"],zh:["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"]}},f.i18n={dayNames:f.lang.dayNames.short,monthNames:f.lang.monthNames.short},f.setLocal=function(e){f.i18n={dayNames:f.lang.dayNames[e],monthNames:f.lang.monthNames[e]}},f},s=(t,e)=>{var a={M:t.getMonth()+1,d:t.getDate(),h:t.getHours(),m:t.getMinutes(),s:t.getSeconds()};return(e=e.replace(/(M+|d+|h+|m+|s+)/g,function(e){return((1<e.length?"0":"")+a[e.slice(-1)]).slice(-2)})).replace(/(y+)/g,function(e){return t.getFullYear().toString().slice(-e.length)})},d=e=>{const t=c.match(/{{date_format\|[\S ]+\|[\S ]+}} /);let a="";try{if(t&&0<t.length){a=t[0];const l=t[0].replace("{{date_format|","").replace("}}","");var r=l.split("|"),n=r[0],i=r[1];"now"==n?a=s(new Date,i):"id"==n&&e&&(a=s(new Date(e),i))}return a}catch(e){return a}},r=e=>title=plugin_storage.title&&e?plugin_storage.title.replace(/{{id}}/gi,e.idx).replace(/{{title}}/gi,e.title).replace(/{{un_title}}/gi,e.title).replace(/{{timestamp}}/gi,e.create.replace(/年|月|日|:| /gi,"")).replace(/{{now\|[\w-\/ :]+}}/gi,y).replace(/{{note}}/gi,e.note||e.title):e?e.title:"<解析失败>",i=e=>new URL(e),u=e=>{let t="";return"\\n"==plugin_storage.tag_suffix&&(plugin_storage.tag_suffix="\n"),e&&e.forEach(e=>t+=plugin_storage.tag_prefix+(""+e.replace(/ /gi,"_"))+plugin_storage.tag_suffix),t.trim()},l=(e,t)=>{let a="";const r=(e=e.replace(/\{|\}/gi,"")).split("|"),n=r[0],i=r[2];return t&&t.forEach(e=>a+=n+e+("\\n"==i?"\n":i)),a=4==r.length?a.replace(new RegExp(r[3]+"$"),""):a},h=e=>{let t="";return e&&e.split("\n").forEach(e=>{e.startsWith("<")?(e=e.replace(/^<|>$/g,""),t+=`[${e}](<${e}>)`+"\n"):t+=e+"\n"}),t.trim()},_=(e,a)=>{const r=new RegExp(`{{[ \\S]+\\|${e}}}`);if(r.test(c)){let t="";const n=c.match(r)[0].replace(/{|{|}|}|}|\|/gi,"").replace(e,"");return a&&a.split("\n").forEach(e=>t+=n+" "+e+"\n"),t.trim()}return a},f=(t,a,r,e)=>{if("org"==t)return n.url+"#:~:text="+encodeURIComponent(r);if("int"==t)return"http://localhost:7026/reading/"+n.idx+(a?"#id="+a:"");if("ext"==t){let e=plugin_storage.ext_uri;return e.startsWith("https://simpread.pro/@")?e?e+n.idx+(a?"#id="+a:""):"{{ext_uri}}":(e=(r=plugin_storage.ext_uri,t=n,r&&t?r.replace(/{{id}}/gi,t.idx).replace(/{{title}}/gi,t.title).replace(/{{un_title}}/gi,t.title).replace(/{{timestamp}}/gi,t.create.replace(/年|月|日|:| /gi,"")).replace(/{{now\|[\w-\/ :]+}}/gi,y).replace(/{{note}}/gi,t.note||t.title):r))+(a?"#id="+a:"")}},g=(e,t)=>{const a=o(),[r,n,i]=e.replace(/{|}/gi,"").split("|");a.setLocal(i||"short");let l="";return l="create"==r?t.replace(/年|月/gi,"-").replace(/日/gi,""):new Date(t),a(l,n)},y=e=>{e=e.replace(/(\{\{now\|)|(\}\})/gi,"");return o()(+new Date,e)},S=e=>{return o()(e,"yyyyddmmHHMMss")},M=e=>{let a="";return e&&e.forEach(e=>{var t;"unread"==e.type?(t=((t,a)=>{for(let e=0;e<a.length;e++)if(a[e].idx==t)return a[e]})(e.id,unrdist))&&(a+=r(t)+" "):"annote"==e.type&&(t=((t,a)=>{for(let e=0;e<a.length;e++){const r=a[e],n=r.annotations&&r.annotations.findIndex(e=>e.id==t);if(-1<n)return{unread:r,annote:r.annotations[n]}}return{unread:{},annote:{}}})(e.id,unrdist))&&(e=t.unread,t.annote,e&&!$.isEmptyObject(e)&&(a+=r(e)+" "))}),a.trim()},k=()=>{const e=c.match(/{{#each}}[\S\n ]+{{\/each}}/gi);if(e&&0<e.length){let s="",g=e[0].replace("{{#each}}","").replace("{{/each}}","").trim();return a&&a.forEach(e=>{const{type:t,text:a,html:r,note:n,tags:i,id:l,refs:c}=e;let o="";"img"==t?o=`![](${a})`:"code"==t?o="```\n"+a.trim()+"\n```":"paragraph"==t&&(o=m(r,void 0,void 0,!0,p.format)),s+=g.replace(/{{an_create}}/gi,(e=>{const t=new Date(e),a=e=>e=e<10?"0"+e:e;return t.getFullYear()+"年"+a(t.getMonth()+1)+"月"+a(t.getDate())+"日 "+a(t.getHours())+":"+a(t.getMinutes())+":"+a(t.getSeconds())})(l)).replace(/{{an_html}}/gi,o).replace(/{{an_timestamp}}/gi,S(l)).replace(/{{an_id}}/gi,l).replace(/{{an_text}}/gi,a).replace(/{{an_short_text}}/gi,a.substr(0,20)+(10<a.length?"...":"")).replace(/{{an_note}}/gi,n).replace(/{{an_tags}}/gi,u(i)).replace(/{{[ \S]+\|an_text}}/gi,_("an_text",a)).replace(/{{[ \S]+\|an_html}}/gi,_("an_html",o)).replace(/{{[ \S]+\|an_note}}/gi,_("an_note",n)).replace(/{{[ \S]+\|an_refs}}/gi,_("an_refs",h(c))).replace(/{{[ \S]+\|an_backlinks}}/gi,_("an_backlinks",M(e.backlinks))).replace(/{{an_backlinks}}/gi,M(e.backlinks)).replace(/{{date_format\|[\S ]+\|[\S ]+}}/,d(l)).replace(/{{an_org_uri}}/gi,f("org",l,a)).replace(/{{an_int_uri}}/gi,f("int",l,a)).replace(/{{an_ext_uri}}/gi,f("ext",l,a))+"\n"}),s}return""};if(!e){if(t){const{type:b,text:T,html:x,note:w,tags:D,id:v,refs:N}=t;let e="";"img"==b?e=`![](${T})`:"code"==b?e="```\n"+T.trim()+"\n```":"paragraph"==b&&(e=x),c=c.replace(/{{an_create\|[ \S]+}}/gi,e=>g(e,v)).replace(/{{now\|[ \S]+}}/gi,e=>g(e,+new Date)).replace(/{{an_timestamp}}/gi,S(v)).replace(/{{an_html}}/gi,e).replace(/{{an_id}}/gi,v).replace(/{{an_text}}/gi,T).replace(/{{an_short_text}}/gi,T.substr(0,20)+(10<T.length?"...":"")).replace(/{{an_note}}/gi,w).replace(/{{an_tags}}/gi,u(D)).replace(/{{[ \S]+\|an_text}}/gi,_("an_text",T)).replace(/{{[ \S]+\|an_html}}/gi,_("an_html",e)).replace(/{{[ \S]+\|an_note}}/gi,_("an_note",w)).replace(/{{[ \S]+\|an_refs}}/gi,_("an_refs",h(N))).replace(/{{[ \S]+\|an_backlinks}}/gi,_("an_backlinks",M(t.backlinks))).replace(/{{an_backlinks}}/gi,M(t.backlinks)).replace(/{{an_org_uri}}/gi,f("org",v,T)).replace(/{{an_int_uri}}/gi,f("int",v,T)).replace(/{{an_ext_uri}}/gi,f("ext",v,T)).replace(/{{an_refs}}/gi,_("an_refs",h(n.refs))).replace(/{{[^{]+\|an_tag\|[^}]+}}/gi,e=>l(e,D)).replace(/{{3}html\_format\|[^|]+\|!\[\S?\]\([a-zA-z]+:\/\/[^\s]*\}\}\}/gi,e=>{const t=e.split("|"),a=t[1],r=t[t.length-1].replace(/}{3}$/,"");return/<\w+>/.test(a)?e:a+" "+r})}else c=(c=c.replace(/{{create\|[ \S]+}}/gi,e=>g(e,n.create)).replace(/{{now\|[ \S]+}}/gi,e=>g(e,+new Date)).replace(/{{date_format\|[\S ]+\|[\S ]+}}/,d()).replace(/{{idx}}/gi,n.idx).replace(/{{url}}/gi,n.url).replace(/{{title}}/gi,n.title).replace(/{{create}}/gi,n.create).replace(/{{timestamp}}/gi,n.create.replace(/年|月|日|:| /gi,"")).replace(/{{desc}}/gi,n.desc).replace(/{{note}}/gi,n.note).replace(/{{backlinks}}/gi,M(n.backlinks)).replace(/{{host}}/gi,i(n.url).host).replace(/{{tags}}/gi,u(n.tags)).replace(/{{int_uri}}/gi,f("int")).replace(/{{ext_uri}}/gi,f("ext")).replace(/{{org_uri}}/gi,f("org")).replace(/{{refs}}/gi,_("refs",h(n.refs))).replace(/{{[ \S]+\|refs}}/gi,_("refs",h(n.refs))).replace(/{{[ \S]+\|desc}}/gi,_("desc",n.desc)).replace(/{{[ \S]+\|note}}/gi,_("note",n.note)).replace(/{{[ \S]+\|backlinks}}/gi,_("backlinks",M(n.backlinks))).replace(/{{[^{]+\|tag\|[^}]+}}/gi,e=>l(e,n.tags))).replace(/{{#each}}[\S\n ]+{{\/each}}/gi,k(n.annotations));return c}e({parseURLScheme:i,fmtDate:o,parseBakinks:M})}function mdtemplate(i){let e=plugin_storage.template,l=plugin_storage.annotation;const c=(e,t,a)=>{let r=plugin_storage.format;try{r=r?{bulletListMarker:"-",...r=JSON.parse(r)}:JSON.stringify({bulletListMarker:"-"})}catch(e){r=JSON.stringify({bulletListMarker:"-"}),console.error("format_html option error",e)}/^```/i.test(e)&&/```$/i.test(e)&&(e=e.replace(/</gi,"&lt;").replace(/>/gi,"&gt;")),t?">"==t?e=`<blockquote>${e}</blockquote>`:"-"==t||"*"==t?e=`<li>${e}</li>`:/<\w+>/.test(t)&&(e=`<${t=t.replace(/<|>/gi,"")}>${e}</<${t}>`):e=`<p>${e}</p>`,markdown(e=e.replace(/\n/gi,"<br>"),void 0,e=>{e=e.replace(/!\\\[\\\]/i,"![]"),a(e)},!1,JSON.stringify(r))};let o=ejs.render(e,{unread:i});const a=(o=AnnoteMDTemplate2(o,plugin_storage,i,void 0,i.annotations,markdown)).match(/{{3}html\_format\|[^|]+\|[^{{{]+}{3}|{{3}html\_format\|[^|]+\|[^]+}{3}/gi)||[],r=a.length,n=[];let s=0;const g=e=>{var t=e.split("|")[1],e=e.replace("{{{html_format|"+t+"|","").replace(/}}}$/,"");c(e,t,e=>{n.push(e),++s<r?g(a[s]):(console.log("md template replace ",a,n),a.forEach((e,t)=>{o=o.replace(e,n[t])}),(/{{annotations}}/.test(o)?p:m)())})},p=()=>{let t="",a=0;const r=i.annotations.length,n=e=>{t+=e,++a<r?antemplate(l,i,i.annotations[a],c,n):(o=o.replace("{{annotations}}",t),m())};0<r?antemplate(l,i,i.annotations[a],c,n):m()},m=()=>{console.log("unread template is ",o),global_callback?global_callback(o):console.log("unread template is ",o)};try{0<r?g(a[s]):p()}catch(e){console.log(e)}}function antemplate(e,t,a,r,n){let i=ejs.render(e,{unread:t,annote:a});const l=(i=AnnoteMDTemplate2(i,plugin_storage,t,a,t.annotations,markdown)).match(/{{3}html\_format\|[^|]+\|[^{{{]+}{3}|{{3}html\_format\|[^|]+\|[^]+}{3}/gi)||[],c=l.length,o=[];let s=0;const g=e=>{var t=e.split("|")[1],e=e.replace("{{{html_format|"+t+"|","").replace(/}}}$/,"");r(e,t,e=>{o.push(e),++s<c?g(l[s]):(l.forEach((e,t)=>{i=i.replace(e,o[t])}),n(i))})};0<c?g(l[s]):n(i)}mdtemplate(unread);
     }
 
     schedule() {
@@ -594,6 +612,122 @@ class SimpReadPlugin extends obsidian.Plugin {
             window.localStorage.setItem( 'rw-ObsidianClientId', obsidianClientId );
             return obsidianClientId;
         }
+    }
+
+    preview( idx, hash ) {
+        const MM_VIEW_TYPE  = 'simpread-unreader',
+              title         = idx ? '' : this.app.workspace.activeLeaf.getDisplayText();
+        if ( idx || /^\d+-/.test( title )) {
+            let preview;
+            if ( this.app.workspace.getLeavesOfType( MM_VIEW_TYPE ).length > 0 ) {
+                preview     = this.app.workspace.getLeavesOfType( MM_VIEW_TYPE )[0];
+            } else {
+                preview     = this.app.workspace.splitActiveLeaf( 'vertical' );
+            }
+            !idx && ( idx   = title.match( /^\d+/ )[0] );
+            const srPreview = new UnreadView( this.settings, preview, title, idx, hash );
+            preview.open( srPreview );
+        } else this.notice( '只有当前文件的标题以 id- 开头才能使用此功能', true, 4, true );
+    }
+
+    openUnradbylink() {
+        const me = this;
+        this.registerMarkdownPostProcessor(( element, context ) => {
+            const links = element.querySelectorAll( 'a' );      
+            for ( let i = 0; i < links.length; i++ ) {
+                const link = links.item( i );
+                if ( link.href.startsWith( 'http://localhost:7026/unread' )) {
+                    link.removeAttribute( 'href' );
+                    link.addEventListener( 'mousedown', event => this.srLinkHandler( event, me ) );
+                }
+            }
+        });
+    }
+
+    srLinkHandler( event, me ) {
+        const url  = new URL( event.currentTarget.ariaLabel ),
+              idx  = url.pathname.replace( '/unread/', '' ),
+              hash = url.hash.replace( '#id=', '#anchor=' );
+        me.preview( idx, hash );
+    }
+}
+
+class UnreadView extends obsidian.ItemView {
+
+    constructor( settings, leaf, title, idx, hash ) {
+        super( leaf );
+        this.settings = settings;
+        this.title    = title;
+        this.idx      = idx;
+        this.hash     = hash;
+    }
+
+    getViewType() {
+        return 'simpread-unreader';
+    }
+
+    getDisplayText() {
+        return 'SimpRead UnReader ' + this.title;
+    }
+
+    onMoreOptionsMenu( menu ) {    
+        menu
+        .addItem((item) => 
+            item
+            .setIcon( 'popup-open' )
+            .setTitle( 'Open other Unread by idx' )
+            .onClick(() => this.openUnread() )
+        );
+        menu.showAtPosition({ x: 0, y: 0 });
+    }
+
+    onload() {
+        let { containerEl } = this;
+        const help          = containerEl.createEl( 'p' );
+        help.innerHTML      = `<iframe src="http://localhost:7026/unread/${ this.idx }${ this.hash || '' }" style="position:absolute;top:0px;left:0px;margin-top:20px;height:100%;width:100%">`;
+    }
+
+    openUnread() {
+        new OpenUnreadModal( this.app, this.settings, this.title ).open();
+    }
+}
+
+class OpenUnreadModal extends obsidian.Modal {
+
+    constructor( app, settings, title ) {
+        super( ...arguments );
+        this.settings = settings;
+        this.title    = title;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+
+        contentEl.createEl( 'h2', { text: 'Open Unread by idx' });
+
+        new obsidian.Setting( contentEl )
+            .setName( 'Unread idx' )
+            .addText( text =>
+                text.onChange( value => {
+                    this.idx = value;
+                }));
+
+        new obsidian.Setting( contentEl )
+            .addButton( btn =>
+                btn
+                .setButtonText( 'Open' )
+                .setCta()
+                .onClick(() => {
+                    const preview  = this.app.workspace.getLeavesOfType( 'simpread-unreader' )[0],
+                          srPreview = new UnreadView( this.settings, preview, this.title, this.idx );
+                    preview.open( srPreview );
+                    this.close();
+                }));
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
     }
 }
 
