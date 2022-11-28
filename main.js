@@ -1,5 +1,6 @@
 var obsidian = require( 'obsidian' );
-const http   = require( 'http' );
+const http      = require( 'http' ),
+      { shell } = require( 'electron' );
 
 function __awaiter(thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -149,6 +150,10 @@ class UnreadSuggest extends obsidian.SuggestModal {
                 const path  = this.app.vault.adapter.basePath + '/' + this.settings.folder,
                       title = this.safe( this.parseTitle( this.settings.title, unread ));
                 this.app.vault.adapter.fs.writeFileSync( path + '/' + title + '.md', md );
+                setTimeout( () => {
+                    const file = this.app.vault.getFiles().find( f => f.name === title + '.md' );
+                    file && this.app.workspace.getMostRecentLeaf().openFile( file );
+                }, 100 );
             });
         } catch ( error ) {
             console.error( 'current unread write error: ', error, unread )
@@ -306,6 +311,8 @@ class SimpReadPlugin extends obsidian.Plugin {
 
     server() {
         const requestListener = ( req, res ) => {
+            res.setHeader( 'Access-Control-Allow-Origin', '*' );
+            res.setHeader( 'Access-Control-Allow-Methods', '*' );
             if ( req.method === 'GET' ) {
                 res.writeHead( 200 );
                 res.end( 'SimpRead Sync server run' );
@@ -328,10 +335,10 @@ class SimpReadPlugin extends obsidian.Plugin {
                             });
                         } else {
                             this.read( body.title, ( file, md ) => this.update( file, md, body ) );
-                            res.setHeader( 'Content-Type', 'application/json' );
-                            res.writeHead( 200 );
-                            res.end( `{ "code": 200, "message": "simpread data post success" }` );
                         }
+                        res.setHeader( 'Content-Type', 'application/json' );
+                        res.writeHead( 200 );
+                        res.end( `{ "code": 200, "message": "simpread data post success" }` );
                     } catch ( error ) {
                         console.error( error )
                         res.setHeader( 'Content-Type', 'application/json' );
@@ -670,13 +677,31 @@ class UnreadView extends obsidian.ItemView {
         return 'SimpRead UnReader ' + this.title;
     }
 
-    onMoreOptionsMenu( menu ) {    
+    onMoreOptionsMenu( menu ) {
         menu
         .addItem((item) => 
             item
             .setIcon( 'popup-open' )
-            .setTitle( 'Open other Unread by idx' )
+            .setTitle( 'Open other unread by idx' )
             .onClick(() => this.openUnread() )
+        )
+        .addItem((item) => 
+            item
+            .setIcon( 'popup-open' )
+            .setTitle( 'Open current unread by new tab' )
+            .onClick(() => this.openUnreadBy( 'browser' ) )
+        )
+        .addItem((item) => 
+            item
+            .setIcon( 'popup-open' )
+            .setTitle( 'Open current unread by window' )
+            .onClick(() => this.openUnreadBy( 'urlscheme' ) )
+        )
+        .addItem((item) => 
+            item
+            .setIcon( 'popup-open' )
+            .setTitle( 'Refresh' )
+            .onClick(() => this.onRefresh() )
         );
         menu.showAtPosition({ x: 0, y: 0 });
     }
@@ -689,6 +714,17 @@ class UnreadView extends obsidian.ItemView {
 
     openUnread() {
         new OpenUnreadModal( this.app, this.settings, this.title ).open();
+    }
+
+    openUnreadBy( type ) {
+        shell.openExternal( ( type == 'browser' ? 'http://localhost:7026/unread/' : 'simpread://open?type=unread&idx=' ) + this.idx );
+    }
+
+    onRefresh() {
+        const preview = this.app.workspace.getLeavesOfType( 'simpread-unreader' )[0],
+        srPreview     = new UnreadView( this.settings, preview, this.title, this.idx );
+        preview.open( srPreview );
+        this.close();
     }
 }
 
