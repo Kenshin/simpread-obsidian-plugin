@@ -46,6 +46,12 @@ https://user-images.githubusercontent.com/81074/174549318-892ed045-49f2-4c3f-967
 
 关于简悦与 Obsidian 的更多联动 [请看这里](https://github.com/Kenshin/simpread/discussions?discussions_q=label%3Aobsidian)。
 
+# 一站式教程
+
+为了降低使用门槛，简悦官方推出了 [配置库](https://github.com/Kenshin/simpread/discussions/4531) 方案，内置了此插件的 [Obsidian 配置库](https://github.com/Kenshin/simpread/discussions/4531#discussioncomment-3844881)。
+
+![](https://user-images.githubusercontent.com/81074/195000268-f6af3191-8a92-4f1c-ab6c-7a0abe8edcca.png)
+
 # 使用前提
 
 此插件需要使用 [简悦 · 同步助手](http://ksria.com/simpread/docs/#/Sync)，才可发挥最大的效果，如何配置同步助手 [请看这里](https://kb.simpread.pro/#/page/配置同步助手)。
