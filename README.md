@@ -62,7 +62,7 @@ https://user-images.githubusercontent.com/81074/174549318-892ed045-49f2-4c3f-967
 
 如果你已经安装了此插件，[下载最新版](https://github.com/kenshin/simpread-obsidian-plugin/releases/latest) 对应的 `main.js` 与 `manifest.json` 后进入到 `Obsidian 库文件/.obsidian/simpread` 目录下，替换即可。
 
-此版本也同步更新到 ObsidIan 高级版配置库压缩包。
+此版本也同步更新到 [Obsidian 高级版配置库](https://github.com/Kenshin/simpread/discussions/4531#discussioncomment-3844881) 压缩包。
 
 # 文档
 
