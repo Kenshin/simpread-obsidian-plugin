@@ -1,8 +1,8 @@
-<p align="center"><img src="https://user-images.githubusercontent.com/81074/170913930-f01e91fe-0d65-4bf7-b0da-38248989f1e6.png" /></p>
+<p align="center"><img src="https://res.cloudinary.com/simpread/image/upload/v1785387651/config/7f2b5be5e787a476a43eb3446768ffb3.png" /></p>
 
 # 描述
 
-全新 3.0 版，大幅优化了配置相关的内容，目前分为两种使用方案：
+全新 4.0 版，大幅优化了配置相关的内容，目前分为两种使用方案：
 
 1️⃣ 轻量级使用，**安装此插件后无须任何设置**，配合 [导入到 Obsidian](https://github.com/Kenshin/simpread/discussions/2902) 就能将实现剪藏功能（包括图片本地化）
 
@@ -35,6 +35,12 @@ https://github.com/Kenshin/simpread-obsidian-plugin
 - 得益于简悦精准的阅读模式匹配功能以及 HTML → Markdown 方案，通过此方式生成的 Markdown 的精准度最高，甚至可以匹配数学公式（LaTeX）
 
 - 使用 Command Support 可以将任意稍后读转换为 Markdown，可以弥补  [Markdown 模板辅助增强](https://github.com/Kenshin/simpread/discussions/3725) 仅能用于阅读模式的缺陷。
+
+# 内置 Markdown 模板解析方案
+
+因 Chrome Manifest V3 版无法使用高级定制方案，所以将这部分功能转移到此插件中。
+
+如果你在使用的简悦版本为 2.3.0+ 的话，同时使用高级模板方案的话，请务必 **SimpRead Obsidian Plugin 为 4.0**。
 
 # 集成标注功能
 
